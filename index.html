@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>财盛集团 - 博亿研发中心 V3.0</title>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- 背景壁纸 - 强制显示 -->
+  <div id="bg-wallpaper"></div>
+  
+  <style>
+    /* 壁纸强制显示 */
+    #bg-wallpaper {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 0 !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+      pointer-events: none !important;
+    }
+    /* 默认背景 */
+    #bg-wallpaper {
+      background: linear-gradient(135deg, #0b0f1a, #1a1a2e, #16213e) !important;
+    }
+    #root {
+      position: relative !important;
+      z-index: 1 !important;
+      min-height: 100vh !important;
+    }
+    /* 毛玻璃卡片 */
+    div[class*="card"] {
+      background: rgba(10, 10, 18, 0.7) !important;
+      backdrop-filter: blur(16px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    }
+  </style>
+  
+  <script>
+    // 立即加载壁纸
+    (function() {
+      const saved = localStorage.getItem('wallpaper');
+      const bg = document.getElementById('bg-wallpaper');
+      if (saved && saved.startsWith('data:image')) {
+        bg.style.backgroundImage = 'url(' + saved + ')';
+        bg.style.backgroundSize = 'cover';
+        bg.style.backgroundPosition = 'center';
+        console.log('✅ 壁纸已加载');
+      } else {
+        console.log('📷 使用默认背景');
+      }
+    })();
+    
+    // 监听壁纸变化
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'wallpaper' && e.newValue) {
+        const bg = document.getElementById('bg-wallpaper');
+        bg.style.backgroundImage = 'url(' + e.newValue + ')';
+        bg.style.backgroundSize = 'cover';
+        bg.style.backgroundPosition = 'center';
+      }
+    });
+  </script>
+  
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
