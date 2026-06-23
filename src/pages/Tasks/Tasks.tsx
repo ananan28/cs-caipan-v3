@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
@@ -6,10 +6,12 @@ import { Input } from '@/components/Forms/Input'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { useDetectionStore } from '@/store/detectionStore'
+import { DetectionItems } from './components/DetectionItems'
 import toast from 'react-hot-toast'
 import {
   CheckSquare, Upload, Download, Play, Clock, CheckCircle, XCircle,
-  Search, Eye, Trash2, RefreshCw, Loader, X, Plus, Filter
+  Search, Eye, Trash2, RefreshCw, Loader, X, Plus, Filter,
+  Settings, ListChecks
 } from 'lucide-react'
 
 interface Task {
@@ -54,7 +56,6 @@ export const Tasks = () => {
   const [filterPlatform, setFilterPlatform] = useState('')
   const [creating, setCreating] = useState(false)
 
-  // 加载任务列表
   const loadTasks = async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -97,7 +98,6 @@ export const Tasks = () => {
   const numberCount = numbers.split('\n').filter(n => n.trim()).length
   const totalCost = numberCount * basePrice
 
-  // 创建任务
   const handleCreateTask = async () => {
     const numberList = numbers.split('\n').filter(n => n.trim())
     if (numberList.length === 0) {
@@ -184,7 +184,6 @@ export const Tasks = () => {
   return (
     <div className="p-6 bg-[#0a0f1f] min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* 头部 */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white flex items-center gap-2">
@@ -198,41 +197,43 @@ export const Tasks = () => {
           </Button>
         </div>
 
-        {/* Tab */}
-        <div className="flex gap-2 border-b border-gray-800">
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-gray-800">
           <button
             onClick={() => setActiveTab('platforms')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
               activeTab === 'platforms'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            平台选择
-          </button>
-          <button
-            onClick={() => setActiveTab('create')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'create'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            创建任务
+            <Play size={16} /> 创建任务
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
+            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
               activeTab === 'history'
-                ? 'text-blue-400 border-b-2 border-blue-400'
-                : 'text-gray-400 hover:text-white'
+                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
             }`}
           >
-            任务历史 ({tasks.length})
+            <ListChecks size={16} /> 任务历史 ({tasks.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('items')}
+            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
+              activeTab === 'items'
+                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
+                : 'text-gray-400 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Settings size={16} /> 检测项管理
           </button>
         </div>
 
-        {/* 平台选择 */}
+        {/* 内容区域 */}
+        {activeTab === 'items' && <DetectionItems />}
+
         {activeTab === 'platforms' && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {platformCards.map((platform) => (
@@ -254,9 +255,8 @@ export const Tasks = () => {
           </div>
         )}
 
-        {/* 创建任务 */}
-        {activeTab === 'create' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {activeTab === 'platforms' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
             <div className="lg:col-span-2 space-y-4">
               <Card>
                 <div className="space-y-4">
@@ -339,7 +339,6 @@ export const Tasks = () => {
           </div>
         )}
 
-        {/* 任务历史 */}
         {activeTab === 'history' && (
           <Card>
             <div className="flex flex-wrap gap-4 mb-4">
@@ -407,7 +406,7 @@ export const Tasks = () => {
                       <td className="px-4 py-3">
                         <button
                           onClick={() => handleDeleteTask(task.id)}
-                          className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                          className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -416,9 +415,7 @@ export const Tasks = () => {
                   ))}
                   {filteredTasks.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="text-center py-8 text-gray-400">
-                        暂无任务
-                      </td>
+                      <td colSpan={6} className="text-center py-8 text-gray-400">暂无任务</td>
                     </tr>
                   )}
                 </tbody>

@@ -28,10 +28,6 @@ interface Conversation {
   agent_id: string
   status: string
   created_at: string
-  user?: {
-    email: string
-    username: string
-  }
   last_message?: string
   unread_count?: number
 }
@@ -50,7 +46,7 @@ export const Chat = () => {
     setLoading(true)
     let query = supabase
       .from('conversations')
-      .select('*, user:users(email, username)')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (user?.role !== 'SuperAdmin' && user?.role !== 'Admin') {
@@ -88,38 +84,12 @@ export const Chat = () => {
   useEffect(() => {
     if (selectedConv) {
       loadMessages(selectedConv)
-      // 标记已读
-      supabase
-        .from('messages')
-        .update({ status: 'read' })
-        .eq('conversation_id', selectedConv)
-        .neq('sender_id', user?.id)
     }
   }, [selectedConv])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
-
-  // 实时订阅新消息
-  useEffect(() => {
-    const subscription = supabase
-      .channel('messages')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new as Message
-          if (newMsg.conversation_id === selectedConv) {
-            setMessages(prev => [...prev, newMsg])
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [selectedConv])
 
   const handleSend = async () => {
     if (!inputMessage.trim() || !selectedConv) return
@@ -138,11 +108,11 @@ export const Chat = () => {
       toast.error('发送失败: ' + error.message)
     } else {
       setInputMessage('')
-      // 更新会话最后消息
       await supabase
         .from('conversations')
         .update({ last_message: inputMessage })
         .eq('id', selectedConv)
+      loadMessages(selectedConv)
     }
   }
 
@@ -164,7 +134,7 @@ export const Chat = () => {
   }
 
   const filteredConversations = conversations.filter(c => {
-    return c.user?.email?.includes(search) || c.id.includes(search)
+    return c.id.includes(search)
   })
 
   if (loading) {
@@ -179,7 +149,6 @@ export const Chat = () => {
     <div className="p-6 bg-[#0a0f1f] min-h-screen">
       <div className="max-w-7xl mx-auto h-[calc(100vh-120px)]">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
-          {/* 会话列表 */}
           <Card className="md:col-span-1 flex flex-col h-full">
             <div className="p-4 border-b border-gray-800">
               <div className="flex items-center justify-between">
@@ -213,7 +182,7 @@ export const Chat = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-white text-sm font-medium">
-                        {conv.user?.email || conv.user_id}
+                        {conv.user_id === user?.id ? '我' : conv.user_id}
                       </p>
                       <p className="text-gray-400 text-xs truncate max-w-[120px]">
                         {conv.last_message || '暂无消息'}
@@ -223,9 +192,6 @@ export const Chat = () => {
                       <Badge variant={conv.status === 'active' ? 'success' : 'default'}>
                         {conv.status}
                       </Badge>
-                      {conv.unread_count > 0 && (
-                        <Badge variant="danger">{conv.unread_count}</Badge>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -236,7 +202,6 @@ export const Chat = () => {
             </div>
           </Card>
 
-          {/* 消息区域 */}
           <Card className="md:col-span-2 flex flex-col h-full">
             {selectedConv ? (
               <>
@@ -246,19 +211,9 @@ export const Chat = () => {
                       <User className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-white font-medium">
-                        {conversations.find(c => c.id === selectedConv)?.user?.email || '用户'}
-                      </p>
+                      <p className="text-white font-medium">用户</p>
                       <p className="text-gray-400 text-xs">在线</p>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Phone size={16} className="text-gray-400" />
-                    </button>
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Video size={16} className="text-gray-400" />
-                    </button>
                   </div>
                 </div>
 
@@ -287,12 +242,6 @@ export const Chat = () => {
 
                 <div className="p-4 border-t border-gray-800">
                   <div className="flex gap-2">
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Paperclip size={18} className="text-gray-400" />
-                    </button>
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Smile size={18} className="text-gray-400" />
-                    </button>
                     <Input
                       value={inputMessage}
                       onChange={(e: any) => setInputMessage(e.target.value)}
