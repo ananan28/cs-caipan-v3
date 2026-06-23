@@ -7,8 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   MessageSquare, Send, User, Clock, CheckCircle,
-  RefreshCw, Search, X, Phone, Video, MoreHorizontal,
-  Smile, Paperclip, Mic
+  RefreshCw, Search, Phone, Video,
+  Smile, Paperclip
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -35,12 +35,24 @@ interface Conversation {
 export const Chat = () => {
   const { user } = useAuthStore()
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [users, setUsers] = useState<Record<string, string>>({})
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedConv, setSelectedConv] = useState<string | null>(null)
   const [inputMessage, setInputMessage] = useState('')
   const [search, setSearch] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const loadUsers = async () => {
+    const { data } = await supabase.from('users').select('id, email, username')
+    if (data) {
+      const map: Record<string, string> = {}
+      data.forEach(u => {
+        map[u.id] = u.username || u.email || u.id.slice(0, 8)
+      })
+      setUsers(map)
+    }
+  }
 
   const loadConversations = async () => {
     setLoading(true)
@@ -78,6 +90,7 @@ export const Chat = () => {
   }
 
   useEffect(() => {
+    loadUsers()
     loadConversations()
   }, [user])
 
@@ -133,8 +146,13 @@ export const Chat = () => {
     }
   }
 
+  const getUserName = (id: string) => {
+    return users[id] || id.slice(0, 8)
+  }
+
   const filteredConversations = conversations.filter(c => {
-    return c.id.includes(search)
+    const name = getUserName(c.user_id)
+    return name.includes(search) || c.id.includes(search)
   })
 
   if (loading) {
@@ -182,7 +200,7 @@ export const Chat = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-white text-sm font-medium">
-                        {conv.user_id === user?.id ? '我' : conv.user_id}
+                        {getUserName(conv.user_id)}
                       </p>
                       <p className="text-gray-400 text-xs truncate max-w-[120px]">
                         {conv.last_message || '暂无消息'}
@@ -211,9 +229,19 @@ export const Chat = () => {
                       <User className="text-blue-400" size={16} />
                     </div>
                     <div>
-                      <p className="text-white font-medium">用户</p>
+                      <p className="text-white font-medium">
+                        {getUserName(conversations.find(c => c.id === selectedConv)?.user_id || '')}
+                      </p>
                       <p className="text-gray-400 text-xs">在线</p>
                     </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
+                      <Phone size={16} className="text-gray-400" />
+                    </button>
+                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
+                      <Video size={16} className="text-gray-400" />
+                    </button>
                   </div>
                 </div>
 
@@ -242,6 +270,12 @@ export const Chat = () => {
 
                 <div className="p-4 border-t border-gray-800">
                   <div className="flex gap-2">
+                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
+                      <Paperclip size={18} className="text-gray-400" />
+                    </button>
+                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
+                      <Smile size={18} className="text-gray-400" />
+                    </button>
                     <Input
                       value={inputMessage}
                       onChange={(e: any) => setInputMessage(e.target.value)}
