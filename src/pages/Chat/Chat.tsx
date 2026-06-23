@@ -65,14 +65,12 @@ export const Chat = () => {
         map[u.id] = u.username || u.email || u.id.slice(0, 8)
       })
       setUsers(map)
-      // 过滤掉当前用户
       setAllUsers(data.filter(u => u.id !== user?.id))
     }
   }
 
   const loadConversations = async () => {
     setLoading(true)
-    
     let query = supabase
       .from('conversations')
       .select('*')
@@ -159,14 +157,12 @@ export const Chat = () => {
     }
   }
 
-  // 创建与新用户的会话
   const handleCreateConversation = async (targetUserId: string) => {
     if (!targetUserId) {
       toast.error('请选择用户')
       return
     }
 
-    // 检查是否已有会话
     const { data: existing } = await supabase
       .from('conversations')
       .select('id')
@@ -207,11 +203,6 @@ export const Chat = () => {
     return users[id] || id.slice(0, 8)
   }
 
-  const getUserRole = (id: string) => {
-    const u = allUsers.find(u => u.id === id)
-    return u?.role || 'User'
-  }
-
   const filteredConversations = conversations.filter(c => {
     const name = getUserName(c.user_id)
     return name.includes(search) || c.id.includes(search)
@@ -248,7 +239,7 @@ export const Chat = () => {
                   value={search}
                   onChange={(e: any) => setSearch(e.target.value)}
                   className="bg-[#1a1f35] border-gray-700 text-white text-sm"
-                  prefix={<Search size={14} className="text-gray-400} />}
+                  prefix={<Search size={14} className="text-gray-400" />}
                 />
               </div>
               {isAdmin && (
@@ -266,25 +257,17 @@ export const Chat = () => {
               {filteredConversations.map((conv) => (
                 <div
                   key={conv.id}
-                  className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-[#1a1f35] transition-colors ${
-                    selectedConv === conv.id ? 'bg-[#1a1f35]' : ''
-                  }`}
+                  className={`p-3 border-b border-gray-800 cursor-pointer hover:bg-[#1a1f35] transition-colors ${selectedConv === conv.id ? 'bg-[#1a1f35]' : ''}`}
                   onClick={() => setSelectedConv(conv.id)}
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-white text-sm font-medium">
-                        {getUserName(conv.user_id)}
-                      </p>
-                      <p className="text-gray-400 text-xs truncate max-w-[120px]">
-                        {conv.last_message || '暂无消息'}
-                      </p>
+                      <p className="text-white text-sm font-medium">{getUserName(conv.user_id)}</p>
+                      <p className="text-gray-400 text-xs truncate max-w-[120px]">{conv.last_message || '暂无消息'}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <Badge variant={conv.status === 'active' ? 'success' : 'default'}>
-                        {conv.status}
-                      </Badge>
-                    </div>
+                    <Badge variant={conv.status === 'active' ? 'success' : 'default'}>
+                      {conv.status}
+                    </Badge>
                   </div>
                 </div>
               ))}
@@ -321,21 +304,10 @@ export const Chat = () => {
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-[70%] p-3 rounded-lg ${
-                          msg.sender_id === user?.id
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-[#1a1f35] text-white'
-                        }`}
-                      >
+                    <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[70%] p-3 rounded-lg ${msg.sender_id === user?.id ? 'bg-blue-500 text-white' : 'bg-[#1a1f35] text-white'}`}>
                         <p className="text-sm">{msg.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString()}
-                        </p>
+                        <p className="text-xs opacity-70 mt-1">{new Date(msg.created_at).toLocaleTimeString()}</p>
                       </div>
                     </div>
                   ))}
@@ -344,24 +316,14 @@ export const Chat = () => {
 
                 <div className="p-4 border-t border-gray-800">
                   <div className="flex gap-2 relative">
-                    <button
-                      className="p-2 hover:bg-[#1a1f35] rounded-lg"
-                      onClick={() => setShowEmoji(!showEmoji)}
-                    >
+                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg" onClick={() => setShowEmoji(!showEmoji)}>
                       <Smile size={18} className="text-gray-400" />
                     </button>
 
                     {showEmoji && (
-                      <div
-                        ref={emojiRef}
-                        className="absolute bottom-14 left-0 bg-[#1a1f35] border border-gray-700 rounded-xl p-3 w-72 max-h-48 overflow-y-auto grid grid-cols-8 gap-1 z-50"
-                      >
+                      <div ref={emojiRef} className="absolute bottom-14 left-0 bg-[#1a1f35] border border-gray-700 rounded-xl p-3 w-72 max-h-48 overflow-y-auto grid grid-cols-8 gap-1 z-50">
                         {emojis.map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={() => insertEmoji(emoji)}
-                            className="text-2xl hover:bg-white/10 rounded p-1 transition-colors"
-                          >
+                          <button key={emoji} onClick={() => insertEmoji(emoji)} className="text-2xl hover:bg-white/10 rounded p-1 transition-colors">
                             {emoji}
                           </button>
                         ))}
@@ -378,10 +340,7 @@ export const Chat = () => {
                       placeholder="输入消息..."
                       className="flex-1 bg-[#1a1f35] border-gray-700 text-white"
                     />
-                    <button
-                      onClick={handleSend}
-                      className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600"
-                    >
+                    <button onClick={handleSend} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600">
                       <Send size={18} className="text-white" />
                     </button>
                   </div>
@@ -407,7 +366,6 @@ export const Chat = () => {
         </div>
       </div>
 
-      {/* 用户选择弹窗 */}
       {showUserSelector && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
           <div className="bg-[#12182b] border border-gray-700 rounded-2xl p-6 w-full max-w-md">
