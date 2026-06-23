@@ -6,9 +6,8 @@ import { Input } from '@/components/Forms/Input'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
-  MessageSquare, Send, User, Clock, CheckCircle,
-  RefreshCw, Search, Phone, Video,
-  Smile, Paperclip
+  MessageSquare, Send, User, RefreshCw, Search,
+  Phone, Video, Smile, Paperclip, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -32,6 +31,19 @@ interface Conversation {
   unread_count?: number
 }
 
+// 表情列表
+const emojis = [
+  '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
+  '😍', '🥰', '😘', '😗', '😙', '😚', '🥲', '😜', '😝', '😛', '🤑', '🤗',
+  '🤩', '🤪', '🤫', '🤭', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
+  '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤔', '🤨', '🧐', '🙄',
+  '😏', '😒', '🙃', '😤', '😣', '😖', '😫', '😩', '🥱', '😴', '😪', '😮',
+  '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+  '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '🤯',
+  '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
+  '✌️', '🤟', '🤘', '👌', '🤌', '🤞', '🖕', '🖐️', '✋', '👋', '🤚', '🖖'
+]
+
 export const Chat = () => {
   const { user } = useAuthStore()
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -41,7 +53,9 @@ export const Chat = () => {
   const [selectedConv, setSelectedConv] = useState<string | null>(null)
   const [inputMessage, setInputMessage] = useState('')
   const [search, setSearch] = useState('')
+  const [showEmoji, setShowEmoji] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const emojiRef = useRef<HTMLDivElement>(null)
 
   const loadUsers = async () => {
     const { data } = await supabase.from('users').select('id, email, username')
@@ -104,6 +118,17 @@ export const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // 点击外部关闭表情
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+        setShowEmoji(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleSend = async () => {
     if (!inputMessage.trim() || !selectedConv) return
 
@@ -130,6 +155,19 @@ export const Chat = () => {
   }
 
   const handleCreateConversation = async () => {
+    // 检查是否已有会话
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('user_id', user?.id)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      setSelectedConv(existing[0].id)
+      toast.info('已有会话')
+      return
+    }
+
     const { data, error } = await supabase
       .from('conversations')
       .insert({
@@ -143,7 +181,13 @@ export const Chat = () => {
     } else if (data) {
       setSelectedConv(data[0].id)
       loadConversations()
+      toast.success('会话已创建')
     }
+  }
+
+  const insertEmoji = (emoji: string) => {
+    setInputMessage(prev => prev + emoji)
+    setShowEmoji(false)
   }
 
   const getUserName = (id: string) => {
@@ -269,12 +313,34 @@ export const Chat = () => {
                 </div>
 
                 <div className="p-4 border-t border-gray-800">
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 relative">
+                    <button
+                      className="p-2 hover:bg-[#1a1f35] rounded-lg"
+                      onClick={() => setShowEmoji(!showEmoji)}
+                    >
+                      <Smile size={18} className="text-gray-400" />
+                    </button>
+
+                    {/* 表情选择器 */}
+                    {showEmoji && (
+                      <div
+                        ref={emojiRef}
+                        className="absolute bottom-14 left-0 bg-[#1a1f35] border border-gray-700 rounded-xl p-3 w-72 max-h-48 overflow-y-auto grid grid-cols-8 gap-1 z-50"
+                      >
+                        {emojis.map((emoji) => (
+                          <button
+                            key={emoji}
+                            onClick={() => insertEmoji(emoji)}
+                            className="text-2xl hover:bg-white/10 rounded p-1 transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
                       <Paperclip size={18} className="text-gray-400" />
-                    </button>
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Smile size={18} className="text-gray-400" />
                     </button>
                     <Input
                       value={inputMessage}
