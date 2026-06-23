@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   MessageSquare, Send, User, RefreshCw, Search,
-  Phone, Video, Smile, Paperclip, X
+  Phone, Video, Smile, Paperclip, X, Users as UsersIcon
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -35,8 +35,6 @@ const emojis = [
   '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
   '😍', '🥰', '😘', '😗', '😙', '😚', '🥲', '😜', '😝', '😛', '🤑', '🤗',
   '🤩', '🤪', '🤫', '🤭', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
-  '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤔', '🤨', '🧐', '🙄',
-  '😏', '😒', '🙃', '😤', '😣', '😖', '😫', '😩', '🥱', '😴', '😪', '😮',
   '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
   '✌️', '🤟', '🤘', '👌', '🤌', '🤞', '🖐️', '✋', '👋', '🤚', '🖖'
 ]
@@ -45,34 +43,42 @@ export const Chat = () => {
   const { user } = useAuthStore()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [users, setUsers] = useState<Record<string, string>>({})
+  const [allUsers, setAllUsers] = useState<any[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedConv, setSelectedConv] = useState<string | null>(null)
   const [inputMessage, setInputMessage] = useState('')
   const [search, setSearch] = useState('')
   const [showEmoji, setShowEmoji] = useState(false)
+  const [showUserSelector, setShowUserSelector] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const emojiRef = useRef<HTMLDivElement>(null)
 
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
+
   const loadUsers = async () => {
-    const { data } = await supabase.from('users').select('id, email, username')
+    const { data } = await supabase.from('users').select('id, email, username, role')
     if (data) {
       const map: Record<string, string> = {}
       data.forEach(u => {
         map[u.id] = u.username || u.email || u.id.slice(0, 8)
       })
       setUsers(map)
+      // 过滤掉当前用户
+      setAllUsers(data.filter(u => u.id !== user?.id))
     }
   }
 
   const loadConversations = async () => {
     setLoading(true)
+    
     let query = supabase
       .from('conversations')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (user?.role !== 'SuperAdmin' && user?.role !== 'Admin') {
+    if (!isAdmin) {
       query = query.eq('user_id', user?.id)
     }
 
@@ -82,7 +88,6 @@ export const Chat = () => {
       toast.error('加载会话失败: ' + error.message)
     } else {
       setConversations(data || [])
-      // 如果有会话但没有选中，自动选中第一个
       if (data && data.length > 0 && !selectedConv) {
         setSelectedConv(data[0].id)
       }
@@ -154,16 +159,23 @@ export const Chat = () => {
     }
   }
 
-  const handleCreateConversation = async () => {
+  // 创建与新用户的会话
+  const handleCreateConversation = async (targetUserId: string) => {
+    if (!targetUserId) {
+      toast.error('请选择用户')
+      return
+    }
+
     // 检查是否已有会话
     const { data: existing } = await supabase
       .from('conversations')
       .select('id')
-      .eq('user_id', user?.id)
+      .eq('user_id', targetUserId)
       .limit(1)
 
     if (existing && existing.length > 0) {
       setSelectedConv(existing[0].id)
+      setShowUserSelector(false)
       toast.info('已进入会话')
       return
     }
@@ -171,7 +183,7 @@ export const Chat = () => {
     const { data, error } = await supabase
       .from('conversations')
       .insert({
-        user_id: user?.id,
+        user_id: targetUserId,
         status: 'active'
       })
       .select()
@@ -180,6 +192,7 @@ export const Chat = () => {
       toast.error('创建会话失败: ' + error.message)
     } else if (data) {
       setSelectedConv(data[0].id)
+      setShowUserSelector(false)
       loadConversations()
       toast.success('会话已创建')
     }
@@ -194,9 +207,19 @@ export const Chat = () => {
     return users[id] || id.slice(0, 8)
   }
 
+  const getUserRole = (id: string) => {
+    const u = allUsers.find(u => u.id === id)
+    return u?.role || 'User'
+  }
+
   const filteredConversations = conversations.filter(c => {
     const name = getUserName(c.user_id)
     return name.includes(search) || c.id.includes(search)
+  })
+
+  const filteredUsers = allUsers.filter(u => {
+    const name = u.username || u.email || ''
+    return name.includes(userSearch) || u.email.includes(userSearch)
   })
 
   if (loading) {
@@ -225,12 +248,19 @@ export const Chat = () => {
                   value={search}
                   onChange={(e: any) => setSearch(e.target.value)}
                   className="bg-[#1a1f35] border-gray-700 text-white text-sm"
-                  prefix={<Search size={14} className="text-gray-400" />}
+                  prefix={<Search size={14} className="text-gray-400} />}
                 />
               </div>
-              <Button className="w-full mt-2" size="sm" onClick={handleCreateConversation}>
-                <MessageSquare size={14} className="mr-2" /> 新会话
-              </Button>
+              {isAdmin && (
+                <Button className="w-full mt-2" size="sm" onClick={() => setShowUserSelector(true)}>
+                  <UsersIcon size={14} className="mr-2" /> 新会话
+                </Button>
+              )}
+              {!isAdmin && (
+                <Button className="w-full mt-2" size="sm" onClick={() => handleCreateConversation(user?.id || '')}>
+                  <MessageSquare size={14} className="mr-2" /> 联系客服
+                </Button>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto">
               {filteredConversations.map((conv) => (
@@ -361,14 +391,70 @@ export const Chat = () => {
               <div className="flex-1 flex items-center justify-center flex-col gap-4">
                 <MessageSquare size={48} className="text-gray-600" />
                 <p className="text-gray-400">选择一个会话开始聊天</p>
-                <Button variant="primary" size="sm" onClick={handleCreateConversation}>
-                  创建新会话
-                </Button>
+                {isAdmin && (
+                  <Button variant="primary" size="sm" onClick={() => setShowUserSelector(true)}>
+                    <UsersIcon size={14} className="mr-2" /> 创建新会话
+                  </Button>
+                )}
+                {!isAdmin && (
+                  <Button variant="primary" size="sm" onClick={() => handleCreateConversation(user?.id || '')}>
+                    联系客服
+                  </Button>
+                )}
               </div>
             )}
           </Card>
         </div>
       </div>
+
+      {/* 用户选择弹窗 */}
+      {showUserSelector && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]">
+          <div className="bg-[#12182b] border border-gray-700 rounded-2xl p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">选择用户</h2>
+              <button onClick={() => setShowUserSelector(false)} className="text-gray-400 hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <Input
+                placeholder="搜索用户..."
+                value={userSearch}
+                onChange={(e: any) => setUserSearch(e.target.value)}
+                className="bg-[#1a1f35] border-gray-700 text-white"
+                prefix={<Search size={16} className="text-gray-400" />}
+              />
+            </div>
+
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">没有其他用户</div>
+              ) : (
+                filteredUsers.map((u) => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleCreateConversation(u.id)}
+                    className="w-full flex items-center justify-between p-3 bg-[#1a1f35] hover:bg-[#1a1f35]/70 rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                        <User className="text-blue-400" size={14} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-white text-sm font-medium">{u.username || u.email}</p>
+                        <p className="text-gray-400 text-xs">{u.email}</p>
+                      </div>
+                    </div>
+                    <Badge variant="info">{u.role || 'User'}</Badge>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
