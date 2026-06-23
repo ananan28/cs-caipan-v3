@@ -3,6 +3,19 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: 3000, host: true },
-  resolve: { alias: { '@': '/src' } }
+  server: {
+    port: 3000,
+    host: true,
+  },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
+        warn(warning)
+      },
+    },
+  },
+  esbuild: {
+    logOverride: { 'ts-1085': 'silent' },
+  },
 })
