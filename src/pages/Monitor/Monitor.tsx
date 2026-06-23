@@ -2,90 +2,237 @@ import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
-import { Activity, Server, Cpu, HardDrive, Globe, Clock, AlertTriangle, CheckCircle, Zap, RefreshCw, BarChart3 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  Activity, Server, Cpu, HardDrive, Wifi, RefreshCw,
+  CheckCircle, XCircle, AlertCircle, Clock, Zap,
+  Database, Cloud, Shield, BarChart3
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface ServiceStatus {
+  id: string
+  name: string
+  status: string
+  uptime: string
+  response_time: string
+  last_check: string
+}
+
+interface SystemMetric {
+  cpu: number
+  memory: number
+  disk: number
+  network: number
+}
+
 export const Monitor = () => {
-  const [cpu, setCpu] = useState(23)
-  const [memory, setMemory] = useState(45)
-  const [disk, setDisk] = useState(62)
-  const [uptime, setUptime] = useState('14天 6小时 32分钟')
-  const [requests, setRequests] = useState(1234)
-  const [errors, setErrors] = useState(3)
-  const [responseTime, setResponseTime] = useState(156)
+  const [services, setServices] = useState<ServiceStatus[]>([])
+  const [metrics, setMetrics] = useState<SystemMetric>({
+    cpu: 0,
+    memory: 0,
+    disk: 0,
+    network: 0
+  })
+  const [loading, setLoading] = useState(true)
+
+  const loadMonitor = async () => {
+    setLoading(true)
+    
+    // 加载服务状态
+    const { data: serviceData, error: serviceError } = await supabase
+      .from('services')
+      .select('*')
+      .order('name', { ascending: true })
+
+    if (serviceError) {
+      toast.error('加载服务状态失败: ' + serviceError.message)
+    } else {
+      setServices(serviceData || [])
+    }
+
+    // 模拟系统指标
+    setMetrics({
+      cpu: Math.round(20 + Math.random() * 60),
+      memory: Math.round(30 + Math.random() * 50),
+      disk: Math.round(40 + Math.random() * 40),
+      network: Math.round(10 + Math.random() * 30)
+    })
+
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadMonitor()
+    const interval = setInterval(loadMonitor, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   const handleRefresh = () => {
-    toast.loading('刷新监控数据...')
-    setTimeout(() => {
-      toast.dismiss()
-      toast.success('✅ 监控数据已刷新')
-      setCpu(Math.floor(Math.random() * 60) + 10)
-      setMemory(Math.floor(Math.random() * 70) + 20)
-      setDisk(Math.floor(Math.random() * 40) + 50)
-    }, 800)
+    loadMonitor()
+    toast.success('已刷新')
+  }
+
+  const statusColors: Record<string, string> = {
+    online: 'success',
+    offline: 'danger',
+    warning: 'warning',
+    maintenance: 'default'
+  }
+
+  const statusLabels: Record<string, string> = {
+    online: '在线',
+    offline: '离线',
+    warning: '警告',
+    maintenance: '维护中'
+  }
+
+  const statusIcons: Record<string, any> = {
+    online: CheckCircle,
+    offline: XCircle,
+    warning: AlertCircle,
+    maintenance: Clock
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-white">📊 系统监控</h1><p className="text-muted text-sm">实时系统状态和性能监控</p></div>
-        <Button variant="ghost" onClick={handleRefresh}><RefreshCw size={18} className="mr-1" />刷新</Button>
-      </div>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">系统监控</h1>
+            <p className="text-gray-400 text-sm">实时监控系统状态</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleRefresh}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><div className="text-center"><p className="text-sm text-muted">系统状态</p><Badge variant="green" className="text-lg mt-1">✅ 正常</Badge></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">运行时间</p><p className="text-2xl font-bold text-white">{uptime}</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">今日请求</p><p className="text-2xl font-bold text-blue">{requests.toLocaleString()}</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">错误率</p><p className="text-2xl font-bold text-green">0.24%</p></div></Card>
-      </div>
+        {/* 系统指标 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">CPU</span>
+              <Cpu className="text-blue-400" size={18} />
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{metrics.cpu}%</div>
+            <div className="w-full h-2 bg-[#1a1f35] rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-blue-400 rounded-full" style={{ width: `${metrics.cpu}%` }} />
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">内存</span>
+              <Server className="text-purple-400" size={18} />
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{metrics.memory}%</div>
+            <div className="w-full h-2 bg-[#1a1f35] rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-purple-400 rounded-full" style={{ width: `${metrics.memory}%` }} />
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">磁盘</span>
+              <HardDrive className="text-green-400" size={18} />
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{metrics.disk}%</div>
+            <div className="w-full h-2 bg-[#1a1f35] rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-green-400 rounded-full" style={{ width: `${metrics.disk}%` }} />
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 text-sm">网络</span>
+              <Wifi className="text-yellow-400" size={18} />
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{metrics.network}%</div>
+            <div className="w-full h-2 bg-[#1a1f35] rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${metrics.network}%` }} />
+            </div>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card title="💻 CPU 使用率">
-          <div className="text-center">
-            <div className="text-5xl font-bold text-blue">{cpu}%</div>
-            <div className="w-full bg-panel/50 rounded-full h-4 mt-3">
-              <div className="bg-blue h-4 rounded-full transition-all" style={{ width: `${cpu}%` }} />
-            </div>
-            <p className="text-xs text-muted mt-2">正常范围 0-80%</p>
+        {/* 服务状态 */}
+        <Card>
+          <div className="p-4 border-b border-gray-800">
+            <h3 className="text-white font-semibold">服务状态</h3>
+          </div>
+          <div className="divide-y divide-gray-800">
+            {services.map((service) => {
+              const Icon = statusIcons[service.status] || Activity
+              const color = statusColors[service.status] || 'default'
+              return (
+                <div key={service.id} className="flex flex-wrap items-center justify-between gap-4 p-4 hover:bg-[#1a1f35]/30">
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 bg-${color}-500/20 rounded-lg`}>
+                      <Icon className={`text-${color}-400`} size={18} />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">{service.name}</p>
+                      <p className="text-gray-400 text-sm">{service.uptime || '运行中'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-gray-400 text-sm">响应: {service.response_time || '12ms'}</span>
+                    <Badge variant={color as any}>
+                      {statusLabels[service.status] || service.status}
+                    </Badge>
+                  </div>
+                </div>
+              )
+            })}
+            {services.length === 0 && (
+              <div className="text-center py-8 text-gray-400">暂无服务监控数据</div>
+            )}
           </div>
         </Card>
-        <Card title="🧠 内存使用率">
-          <div className="text-center">
-            <div className="text-5xl font-bold text-green">{memory}%</div>
-            <div className="w-full bg-panel/50 rounded-full h-4 mt-3">
-              <div className="bg-green h-4 rounded-full transition-all" style={{ width: `${memory}%` }} />
-            </div>
-            <p className="text-xs text-muted mt-2">正常范围 0-90%</p>
-          </div>
-        </Card>
-        <Card title="💾 磁盘使用率">
-          <div className="text-center">
-            <div className="text-5xl font-bold text-orange">{disk}%</div>
-            <div className="w-full bg-panel/50 rounded-full h-4 mt-3">
-              <div className="bg-orange h-4 rounded-full transition-all" style={{ width: `${disk}%` }} />
-            </div>
-            <p className="text-xs text-muted mt-2">正常范围 0-90%</p>
-          </div>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card title="📈 请求统计">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">总请求</span><span className="text-white font-bold">12,345</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">今日请求</span><span className="text-blue font-bold">{requests.toLocaleString()}</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">平均响应</span><span className="text-green font-bold">{responseTime}ms</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">错误请求</span><span className="text-red font-bold">{errors}</span></div>
+        {/* 快速状态 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <CheckCircle className="text-green-400" size={16} />
+              <span className="text-gray-400 text-sm">在线服务</span>
+            </div>
+            <div className="text-white text-xl font-bold mt-1">
+              {services.filter(s => s.status === 'online').length}
+            </div>
           </div>
-        </Card>
-        <Card title="⚡ 服务状态">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">API服务</span><Badge variant="green">🟢 正常</Badge></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">数据库</span><Badge variant="green">🟢 已连接</Badge></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">缓存服务</span><Badge variant="green">🟢 正常</Badge></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">队列服务</span><Badge variant="green">🟢 正常</Badge></div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <AlertCircle className="text-yellow-400" size={16} />
+              <span className="text-gray-400 text-sm">警告</span>
+            </div>
+            <div className="text-white text-xl font-bold mt-1">
+              {services.filter(s => s.status === 'warning').length}
+            </div>
           </div>
-        </Card>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <XCircle className="text-red-400" size={16} />
+              <span className="text-gray-400 text-sm">离线</span>
+            </div>
+            <div className="text-white text-xl font-bold mt-1">
+              {services.filter(s => s.status === 'offline').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <Zap className="text-blue-400" size={16} />
+              <span className="text-gray-400 text-sm">总服务</span>
+            </div>
+            <div className="text-white text-xl font-bold mt-1">{services.length}</div>
+          </div>
+        </div>
       </div>
     </div>
   )
