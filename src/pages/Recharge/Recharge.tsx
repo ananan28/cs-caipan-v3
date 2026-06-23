@@ -7,8 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   CreditCard, Copy, RefreshCw, CheckCircle, XCircle,
-  Clock, AlertCircle, Search, Filter, Trash2,
-  Wallet, DollarSign, ArrowUpRight, ArrowDownRight
+  Clock, AlertCircle, QrCode, Wallet, DollarSign,
+  ArrowUpRight, ArrowDownRight, Zap
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -19,12 +19,12 @@ interface RechargeOrder {
   usdt_amount: number
   rate: number
   points: number
-  bonus_points: number
   address: string
   status: 'pending' | 'paid' | 'completed' | 'cancelled' | 'expired'
   created_at: string
   expires_at: string
   remark: string
+  tx_hash: string
 }
 
 export const Recharge = () => {
@@ -37,6 +37,9 @@ export const Recharge = () => {
   const [rate, setRate] = useState(6.75)
   const [countdown, setCountdown] = useState(0)
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
+  const [showPayment, setShowPayment] = useState(false)
+  const [currentAddress, setCurrentAddress] = useState('')
+  const [currentAmount, setCurrentAmount] = useState(0)
 
   const loadOrders = async () => {
     setLoading(true)
@@ -79,6 +82,7 @@ export const Recharge = () => {
     return address
   }
 
+  // 第一步：创建订单，生成地址
   const handleCreateOrder = async () => {
     const amount = parseFloat(usdtAmount)
     if (!amount || amount <= 0) {
@@ -101,7 +105,6 @@ export const Recharge = () => {
         usdt_amount: amount,
         rate: rate,
         points: points,
-        bonus_points: 0,
         address: address,
         status: 'pending',
         remark: remark,
@@ -112,12 +115,53 @@ export const Recharge = () => {
     if (error) {
       toast.error('创建订单失败: ' + error.message)
     } else if (data) {
-      toast.success('充值订单已创建')
-      setShowCreate(false)
-      setUsdtAmount('')
-      setRemark('')
       setCurrentOrderId(data[0].id)
+      setCurrentAddress(address)
+      setCurrentAmount(amount)
+      setShowPayment(true)
+      setShowCreate(false)
       setCountdown(1800)
+      loadOrders()
+    }
+  }
+
+  // 第二步：用户确认已支付
+  const handleConfirmPaid = async () => {
+    if (!currentOrderId) return
+
+    const { error } = await supabase
+      .from('recharge_orders')
+      .update({ 
+        status: 'paid',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', currentOrderId)
+
+    if (error) {
+      toast.error('提交失败: ' + error.message)
+    } else {
+      toast.success('已提交，等待审核确认')
+      setShowPayment(false)
+      setCurrentOrderId(null)
+      setCountdown(0)
+      loadOrders()
+    }
+  }
+
+  // 第三步：管理员确认到账
+  const handleConfirm = async (id: string) => {
+    const { error } = await supabase
+      .from('recharge_orders')
+      .update({ 
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (error) {
+      toast.error('确认失败: ' + error.message)
+    } else {
+      toast.success('✅ 已确认到账')
       loadOrders()
     }
   }
@@ -138,25 +182,12 @@ export const Recharge = () => {
     }
   }
 
-  const handleConfirm = async (id: string) => {
-    const { error } = await supabase
-      .from('recharge_orders')
-      .update({ status: 'completed' })
-      .eq('id', id)
-
-    if (error) {
-      toast.error('确认失败: ' + error.message)
-    } else {
-      toast.success('已确认到账')
-      loadOrders()
-    }
-  }
-
   const copyAddress = (address: string) => {
     navigator.clipboard.writeText(address)
     toast.success('地址已复制')
   }
 
+  // 倒计时自动过期
   useEffect(() => {
     if (countdown > 0 && currentOrderId) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
@@ -167,9 +198,10 @@ export const Recharge = () => {
         .update({ status: 'expired' })
         .eq('id', currentOrderId)
         .then(() => {
-          toast.warning('订单已超时取消')
-          loadOrders()
+          toast.warning('⏰ 订单已超时取消')
+          setShowPayment(false)
           setCurrentOrderId(null)
+          loadOrders()
         })
     }
   }, [countdown, currentOrderId])
@@ -184,17 +216,24 @@ export const Recharge = () => {
 
   const statusLabels: Record<string, string> = {
     pending: '待支付',
-    paid: '已支付',
+    paid: '已支付-审核中',
     completed: '已完成',
     cancelled: '已取消',
     expired: '已过期'
   }
 
+  const statusIcons: Record<string, any> = {
+    pending: Clock,
+    paid: CheckCircle,
+    completed: CheckCircle,
+    cancelled: XCircle,
+    expired: XCircle
+  }
+
   const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600)
-    const m = Math.floor((seconds % 3600) / 60)
+    const m = Math.floor(seconds / 60)
     const s = seconds % 60
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   }
 
   if (loading) {
@@ -237,14 +276,16 @@ export const Recharge = () => {
             </div>
           </div>
           <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">审核中</div>
+            <div className="text-blue-400 text-xl font-bold">
+              {orders.filter(o => o.status === 'paid').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
             <div className="text-gray-400 text-sm">已完成</div>
             <div className="text-green-400 text-xl font-bold">
               {orders.filter(o => o.status === 'completed').length}
             </div>
-          </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">汇率</div>
-            <div className="text-blue-400 text-xl font-bold">1 USDT = {rate} 积分</div>
           </div>
         </div>
 
@@ -257,66 +298,59 @@ export const Recharge = () => {
             <table className="w-full">
               <thead className="bg-[#1a1f35]">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">订单号</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">订单</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">USDT</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">积分</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">地址</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">操作</th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
-                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">{order.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3 text-white font-medium">{order.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-white">{order.points.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-gray-400 text-xs font-mono">
-                          {order.address.slice(0, 10)}...{order.address.slice(-8)}
-                        </span>
-                        <button onClick={() => copyAddress(order.address)} className="text-gray-500 hover:text-white">
-                          <Copy size={14} />
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={statusColors[order.status] || 'default'}>
-                        {statusLabels[order.status] || order.status}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">
-                      {new Date(order.created_at).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1">
-                        {order.status === 'pending' && (
-                          <button
-                            onClick={() => handleCancelOrder(order.id)}
-                            className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
-                            title="取消"
-                          >
-                            <XCircle size={14} />
-                          </button>
-                        )}
-                        {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && order.status === 'pending' && (
-                          <button
-                            onClick={() => handleConfirm(order.id)}
-                            className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
-                            title="确认到账"
-                          >
-                            <CheckCircle size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {orders.map((order) => {
+                  const StatusIcon = statusIcons[order.status] || Clock
+                  return (
+                    <tr key={order.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
+                      <td className="px-4 py-3 text-gray-400 text-xs font-mono">{order.id.slice(0, 8)}</td>
+                      <td className="px-4 py-3 text-white font-medium">{order.amount.toFixed(2)}</td>
+                      <td className="px-4 py-3 text-white">{order.points.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusColors[order.status] || 'default'}>
+                          <StatusIcon size={12} className="mr-1" />
+                          {statusLabels[order.status] || order.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        {new Date(order.created_at).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          {order.status === 'pending' && (
+                            <button
+                              onClick={() => handleCancelOrder(order.id)}
+                              className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                              title="取消"
+                            >
+                              <XCircle size={14} />
+                            </button>
+                          )}
+                          {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && order.status === 'paid' && (
+                            <button
+                              onClick={() => handleConfirm(order.id)}
+                              className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
+                              title="确认到账"
+                            >
+                              <CheckCircle size={14} />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
                 {orders.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="text-center py-8 text-gray-400">暂无充值记录</td>
+                    <td colSpan={6} className="text-center py-8 text-gray-400">暂无充值记录</td>
                   </tr>
                 )}
               </tbody>
@@ -324,9 +358,10 @@ export const Recharge = () => {
           </div>
         </Card>
 
+        {/* 创建充值弹窗 */}
         {showCreate && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-lg">
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-white">自助充值</h2>
                 <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
@@ -362,22 +397,12 @@ export const Recharge = () => {
                   />
                 </div>
 
-                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="text-yellow-400 mt-0.5" size={16} />
-                    <p className="text-yellow-400 text-xs">
-                      充值时请务必带上小数点后的数值，否则验证会不通过！
-                      充值后大概要1分钟才能开始验证，整个过程需要2-3分钟。
-                    </p>
-                  </div>
-                </div>
-
                 <div className="flex gap-3">
                   <Button variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
                     取消
                   </Button>
                   <Button className="flex-1" onClick={handleCreateOrder}>
-                    提交充值
+                    <Zap size={16} className="mr-2" /> 生成支付地址
                   </Button>
                 </div>
               </div>
@@ -385,41 +410,50 @@ export const Recharge = () => {
           </div>
         )}
 
-        {currentOrderId && countdown > 0 && (
+        {/* 支付弹窗 */}
+        {showPayment && currentOrderId && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-8 w-full max-w-md text-center">
-              <div className="mb-4">
-                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto">
-                  <Clock className="text-blue-400" size={40} />
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-8 w-full max-w-md">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                  <Wallet className="text-blue-400" size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-white">支付 USDT</h2>
+                <p className="text-gray-400 text-sm mt-1">请向以下地址转账</p>
+              </div>
+
+              <div className="bg-[#1a1f35] rounded-xl p-4 mb-4">
+                <p className="text-gray-400 text-sm text-center">金额</p>
+                <p className="text-3xl font-bold text-white text-center">{currentAmount.toFixed(2)} USDT</p>
+                <p className="text-gray-500 text-xs text-center mt-1">≈ {rate * currentAmount} 积分</p>
+              </div>
+
+              <div className="bg-[#1a1f35] rounded-xl p-4 mb-4">
+                <p className="text-gray-400 text-sm text-center">收款地址 (TRC20)</p>
+                <p className="text-white font-mono text-xs break-all text-center mt-1">{currentAddress}</p>
+                <div className="flex justify-center gap-3 mt-3">
+                  <Button variant="primary" size="sm" onClick={() => copyAddress(currentAddress)}>
+                    <Copy size={14} className="mr-1" /> 复制地址
+                  </Button>
                 </div>
               </div>
-              <h2 className="text-2xl font-bold text-white">支付倒计时</h2>
-              <div className="text-5xl font-bold text-blue-400 my-6 font-mono">
-                {formatTime(countdown)}
-              </div>
-              <div className="bg-[#1a1f35] rounded-lg p-4">
-                <p className="text-gray-400 text-sm">付款地址</p>
-                <p className="text-white font-mono text-sm break-all">
-                  {orders.find(o => o.id === currentOrderId)?.address || '生成中...'}
+
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 mb-4">
+                <p className="text-yellow-400 text-xs text-center">
+                  ⏰ 请在 <span className="font-bold">{formatTime(countdown)}</span> 内完成支付
                 </p>
-                <button
-                  onClick={() => {
-                    const order = orders.find(o => o.id === currentOrderId)
-                    if (order) copyAddress(order.address)
-                  }}
-                  className="mt-2 text-blue-400 text-sm hover:underline"
-                >
-                  复制地址
-                </button>
               </div>
-              <div className="mt-4 flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => setCurrentOrderId(null)}>
-                  关闭
+
+              <div className="space-y-3">
+                <Button className="w-full" onClick={handleConfirmPaid}>
+                  <CheckCircle size={16} className="mr-2" /> 我已支付，提交审核
                 </Button>
-                <Button variant="primary" className="flex-1" onClick={() => {
-                  toast.success('验证中，请稍候...')
+                <Button variant="outline" className="w-full" onClick={() => {
+                  setShowPayment(false)
+                  setCurrentOrderId(null)
+                  setCountdown(0)
                 }}>
-                  检验并关闭
+                  关闭
                 </Button>
               </div>
             </div>
