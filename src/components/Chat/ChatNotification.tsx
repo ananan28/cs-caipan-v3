@@ -1,7 +1,6 @@
 import React from 'react'
 import { Bell, X } from 'lucide-react'
 import { Badge } from '@/components/Common/Badge'
-import { Button } from '@/components/Common/Button'
 
 interface ChatNotificationProps {
   unreadCount: number
@@ -15,7 +14,7 @@ export const ChatNotification: React.FC<ChatNotificationProps> = ({ unreadCount,
     <div className="fixed bottom-24 right-6 z-50 bg-blue-500 text-white rounded-xl px-4 py-3 shadow-lg flex items-center gap-3 animate-bounce">
       <Bell size={18} />
       <span className="text-sm font-medium">{unreadCount} 条未读消息</span>
-      <Badge variant="light" className="bg-white/20 text-white">新</Badge>
+      <Badge variant="info">新</Badge>
       <button onClick={onClose} className="hover:bg-white/20 rounded p-1">
         <X size={16} />
       </button>

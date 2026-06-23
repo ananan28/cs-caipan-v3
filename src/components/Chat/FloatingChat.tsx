@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { MessageSquare, X, Send, Minimize2, Maximize2, User } from 'lucide-react'
+import { MessageSquare, X, Send, Minimize2, Maximize2 } from 'lucide-react'
 import { useChatStore } from '@/store/chatStore'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/lib/supabase'
@@ -7,16 +7,14 @@ import toast from 'react-hot-toast'
 
 export const FloatingChat = () => {
   const { user } = useAuthStore()
-  const { messages, sessions, addMessage, markRead } = useChatStore()
+  const { messages, addMessage } = useChatStore()
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [input, setInput] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [adminOnline, setAdminOnline] = useState(false)
 
   useEffect(() => {
-    // 创建或获取会话
     const initSession = async () => {
       if (!user?.id) return
       const { data } = await supabase
@@ -58,7 +56,12 @@ export const FloatingChat = () => {
     if (error) {
       toast.error('发送失败')
     } else {
-      addMessage({ id: Date.now().toString(), content: input, sender_id: user?.id || '', created_at: new Date().toISOString() })
+      addMessage({ 
+        id: Date.now().toString(), 
+        content: input, 
+        sender_id: user?.id || '', 
+        created_at: new Date().toISOString() 
+      })
       setInput('')
     }
   }
@@ -72,7 +75,6 @@ export const FloatingChat = () => {
     <div className="fixed bottom-6 right-6 z-50">
       {isOpen ? (
         <div className={`bg-[#12182b] border border-gray-700 rounded-2xl shadow-2xl transition-all duration-300 ${isMinimized ? 'w-72 h-14' : 'w-80 h-[480px]'} flex flex-col`}>
-          {/* Header */}
           <div className="flex items-center justify-between p-3 border-b border-gray-700">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-400 rounded-full"></div>
@@ -91,9 +93,8 @@ export const FloatingChat = () => {
 
           {!isMinimized && (
             <>
-              {/* Messages */}
               <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {messages.map((msg) => (
+                {messages.map((msg: any) => (
                   <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%] p-2 rounded-lg text-sm ${msg.sender_id === user?.id ? 'bg-blue-500 text-white' : 'bg-[#1a1f35] text-white'}`}>
                       {msg.content}
@@ -103,7 +104,6 @@ export const FloatingChat = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input */}
               <div className="p-3 border-t border-gray-700 flex gap-2">
                 <input
                   type="text"
