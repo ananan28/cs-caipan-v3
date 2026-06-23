@@ -1,159 +1,225 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
 import { Input } from '@/components/Forms/Input'
-import { FileText, Search, Download, RefreshCw, Filter, XCircle } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  FileText, Search, RefreshCw, Download, Filter,
+  AlertCircle, Info, AlertTriangle, XCircle,
+  Clock, User, Server
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface Log {
+  id: string
+  user_id: string
+  action: string
+  level: string
+  message: string
+  ip: string
+  user_agent: string
+  created_at: string
+  user?: {
+    email: string
+    username: string
+  }
+}
+
 export const Logs = () => {
-  const [activeTab, setActiveTab] = useState('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [logs, setLogs] = useState([
-    { id: 1, time: '2025-06-22 14:30:25', user: 'admin@cs.com', action: '用户登录', type: 'login', ip: '192.168.1.1', status: 'success' },
-    { id: 2, time: '2025-06-22 14:28:10', user: 'user@example.com', action: '转账操作', type: 'finance', ip: '192.168.1.5', status: 'success' },
-    { id: 3, time: '2025-06-22 14:25:33', user: 'admin@cs.com', action: '修改设置', type: 'system', ip: '192.168.1.1', status: 'success' },
-    { id: 4, time: '2025-06-22 14:20:18', user: 'agent@cs.com', action: '登录失败', type: 'login', ip: '192.168.1.10', status: 'failed' },
-    { id: 5, time: '2025-06-22 14:15:42', user: 'finance@cs.com', action: '审核充值', type: 'finance', ip: '192.168.1.8', status: 'success' },
-    { id: 6, time: '2025-06-22 14:10:05', user: 'admin@cs.com', action: '删除用户', type: 'system', ip: '192.168.1.1', status: 'success' },
-    { id: 7, time: '2025-06-22 14:05:30', user: 'user@cs.com', action: '创建任务', type: 'task', ip: '192.168.1.15', status: 'success' },
-    { id: 8, time: '2025-06-22 14:00:00', user: 'system', action: '系统启动', type: 'system', ip: 'localhost', status: 'info' },
-  ])
+  const [logs, setLogs] = useState<Log[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [filterLevel, setFilterLevel] = useState('')
 
-  // ✅ 刷新
-  const handleRefresh = () => {
-    toast.loading('刷新中...')
-    setTimeout(() => {
-      toast.dismiss()
-      toast.success('✅ 日志已刷新')
-    }, 800)
-  }
+  const loadLogs = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('logs')
+      .select('*, user:users(email, username)')
+      .order('created_at', { ascending: false })
+      .limit(200)
 
-  // ✅ 导出
-  const handleExport = () => {
-    try {
-      const data = logs.map(l => ({
-        '时间': l.time,
-        '用户': l.user,
-        '操作': l.action,
-        '类型': l.type,
-        'IP': l.ip,
-        '状态': l.status
-      }))
-      
-      let csv = '时间,用户,操作,类型,IP,状态\n'
-      data.forEach(row => {
-        csv += `${row['时间']},${row['用户']},${row['操作']},${row['类型']},${row['IP']},${row['状态']}\n`
-      })
-
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `日志_${new Date().toISOString().slice(0, 10)}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      toast.success('✅ 日志已导出')
-    } catch (error) {
-      toast.error('导出失败')
+    if (error) {
+      toast.error('加载日志失败: ' + error.message)
+    } else {
+      setLogs(data || [])
     }
+    setLoading(false)
   }
 
-  const handleReset = () => {
-    setSearchTerm('')
-    setFilterType('')
-    setFilterStatus('')
-    toast.success('已重置筛选条件')
+  useEffect(() => {
+    loadLogs()
+  }, [])
+
+  const handleExport = () => {
+    const csv = [
+      ['ID', '用户', '级别', '操作', '消息', 'IP', '时间'],
+      ...logs.map(l => [
+        l.id.slice(0, 8),
+        l.user?.email || l.user_id || 'system',
+        l.level,
+        l.action,
+        l.message,
+        l.ip || '-',
+        new Date(l.created_at).toLocaleString()
+      ])
+    ].map(row => row.join(',')).join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `logs_${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+    toast.success('导出成功')
   }
 
-  const typeColors: any = { login: 'blue', finance: 'green', system: 'purple', task: 'orange' }
-  const statusColors: any = { success: 'green', failed: 'red', info: 'blue' }
+  const levelColors: Record<string, string> = {
+    info: 'info',
+    warning: 'warning',
+    error: 'danger',
+    debug: 'default'
+  }
 
-  const filteredLogs = logs
-    .filter(l => l.user.includes(searchTerm) || l.action.includes(searchTerm) || l.ip.includes(searchTerm))
-    .filter(l => filterType ? l.type === filterType : true)
-    .filter(l => filterStatus ? l.status === filterStatus : true)
+  const levelIcons: Record<string, any> = {
+    info: Info,
+    warning: AlertTriangle,
+    error: XCircle,
+    debug: Server
+  }
 
-  const filteredByTab = activeTab === 'all' ? filteredLogs : filteredLogs.filter(l => l.type === activeTab)
+  const filtered = logs.filter(l => {
+    const matchSearch = l.message.includes(search) || l.action.includes(search) || l.user?.email?.includes(search)
+    const matchLevel = !filterLevel || l.level === filterLevel
+    return matchSearch && matchLevel
+  })
 
-  const errorCount = logs.filter(l => l.status === 'failed').length
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">系统日志</h1>
-          <p className="text-muted text-sm">操作日志、登录日志、资金日志</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={handleRefresh}><RefreshCw size={18} className="mr-1" />刷新</Button>
-          <Button variant="ghost" onClick={handleExport}><Download size={18} className="mr-2" />导出</Button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <Card><div className="text-center"><p className="text-sm text-muted">总日志</p><p className="text-2xl font-bold text-white">{logs.length}</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">今日</p><p className="text-2xl font-bold text-blue">{logs.filter(l => new Date(l.time).toDateString() === new Date().toDateString()).length}</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">异常</p><p className="text-2xl font-bold text-red">{errorCount}</p></div></Card>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setActiveTab('all')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'all' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>📋 全部</button>
-        <button onClick={() => setActiveTab('login')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'login' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>🔐 登录</button>
-        <button onClick={() => setActiveTab('finance')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'finance' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>💰 资金</button>
-        <button onClick={() => setActiveTab('system')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'system' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>⚙️ 系统</button>
-        <button onClick={() => setActiveTab('task')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'task' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>📊 任务</button>
-      </div>
-
-      <Card>
-        <div className="flex flex-wrap gap-4 mb-4">
-          <div className="flex-1 min-w-[200px]"><Input placeholder="搜索日志..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-          <select className="w-auto min-w-[120px] bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-            <option value="">全部类型</option>
-            <option value="login">登录</option>
-            <option value="finance">资金</option>
-            <option value="system">系统</option>
-            <option value="task">任务</option>
-          </select>
-          <select className="w-auto min-w-[120px] bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">全部状态</option>
-            <option value="success">成功</option>
-            <option value="failed">失败</option>
-            <option value="info">信息</option>
-          </select>
-          <Button variant="ghost" onClick={handleReset}>重置</Button>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">日志系统</h1>
+            <p className="text-gray-400 text-sm">查看所有系统日志</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadLogs}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+            <Button variant="primary" onClick={handleExport}>
+              <Download size={16} className="mr-2" /> 导出
+            </Button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr className="border-b border-border">
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">时间</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">用户</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">操作</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">类型</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">IP</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">状态</th>
-            </tr></thead>
-            <tbody>
-              {filteredByTab.map(log => (
-                <tr key={log.id} className="border-b border-border/50 hover:bg-panel/50">
-                  <td className="py-3 px-4 text-sm text-muted">{log.time}</td>
-                  <td className="py-3 px-4 text-white">{log.user}</td>
-                  <td className="py-3 px-4 text-white">{log.action}</td>
-                  <td className="py-3 px-4"><Badge variant={typeColors[log.type]}>{log.type}</Badge></td>
-                  <td className="py-3 px-4 text-sm text-muted">{log.ip}</td>
-                  <td className="py-3 px-4"><Badge variant={statusColors[log.status]}>{log.status}</Badge></td>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">总日志</div>
+            <div className="text-white text-2xl font-bold">{logs.length}</div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">信息</div>
+            <div className="text-blue-400 text-2xl font-bold">
+              {logs.filter(l => l.level === 'info').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">警告</div>
+            <div className="text-yellow-400 text-2xl font-bold">
+              {logs.filter(l => l.level === 'warning').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">错误</div>
+            <div className="text-red-400 text-2xl font-bold">
+              {logs.filter(l => l.level === 'error').length}
+            </div>
+          </div>
+        </div>
+
+        <Card>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <Input
+                placeholder="搜索日志..."
+                value={search}
+                onChange={(e: any) => setSearch(e.target.value)}
+                className="bg-[#1a1f35] border-gray-700 text-white"
+                prefix={<Search size={16} className="text-gray-400" />}
+              />
+            </div>
+            <select
+              className="px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+            >
+              <option value="">全部级别</option>
+              <option value="info">信息</option>
+              <option value="warning">警告</option>
+              <option value="error">错误</option>
+              <option value="debug">调试</option>
+            </select>
+            <Button variant="ghost" onClick={() => { setSearch(''); setFilterLevel('') }}>
+              重置
+            </Button>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#1a1f35]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">级别</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">用户</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">消息</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">IP</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
                 </tr>
-              ))}
-              {filteredByTab.length === 0 && <tr><td colSpan={6} className="text-center py-8 text-muted">暂无日志记录</td></tr>}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody>
+                {filtered.map((log) => {
+                  const Icon = levelIcons[log.level] || Info
+                  return (
+                    <tr key={log.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
+                      <td className="px-4 py-3">
+                        <Badge variant={levelColors[log.level] || 'default'}>
+                          <Icon size={12} className="mr-1" />
+                          {log.level}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-white text-sm">
+                        {log.user?.email || log.user_id || 'system'}
+                      </td>
+                      <td className="px-4 py-3 text-gray-300 text-sm">{log.action}</td>
+                      <td className="px-4 py-3 text-gray-400 text-sm max-w-xs truncate">{log.message}</td>
+                      <td className="px-4 py-3 text-gray-400 text-sm font-mono">{log.ip || '-'}</td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">
+                        {new Date(log.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-center py-8 text-gray-400">暂无日志</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
