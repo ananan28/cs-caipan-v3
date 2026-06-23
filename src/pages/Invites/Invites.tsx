@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   Users, Copy, Gift, RefreshCw, Search, CheckCircle,
-  Award, Star, TrendingUp, Link, Share2, UserPlus
+  Award, Star, TrendingUp, Link, Share2, UserPlus,
+  Hash, QrCode
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -20,6 +21,7 @@ interface InviteRecord {
   reward: number
   status: string
   created_at: string
+  invite_code: string
 }
 
 export const Invites = () => {
@@ -34,11 +36,15 @@ export const Invites = () => {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [inviteLink, setInviteLink] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
+
+  const generateInviteCode = (userId: string) => {
+    return userId.slice(0, 8) + Math.random().toString(36).substring(2, 6).toUpperCase()
+  }
 
   const loadInvites = async () => {
     setLoading(true)
 
-    // 直接查询 invites 表，不关联 users
     const { data, error } = await supabase
       .from('invites')
       .select('*')
@@ -66,13 +72,20 @@ export const Invites = () => {
   useEffect(() => {
     loadInvites()
     if (user?.id) {
-      setInviteLink(`${window.location.origin}/register?ref=${user.id}`)
+      const code = generateInviteCode(user.id)
+      setInviteCode(code)
+      setInviteLink(`${window.location.origin}/register?ref=${code}`)
     }
   }, [user])
 
   const copyInviteLink = () => {
     navigator.clipboard.writeText(inviteLink)
     toast.success('邀请链接已复制')
+  }
+
+  const copyInviteCode = () => {
+    navigator.clipboard.writeText(inviteCode)
+    toast.success('邀请码已复制')
   }
 
   const filtered = invites.filter(i => {
@@ -103,7 +116,6 @@ export const Invites = () => {
           </Button>
         </div>
 
-        {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-4">
             <div className="text-gray-400 text-sm">总邀请</div>
@@ -123,25 +135,32 @@ export const Invites = () => {
           </div>
         </div>
 
-        {/* 邀请链接 */}
-        <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-white text-sm font-medium">邀请链接</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 border-blue-500/30">
+            <div className="flex flex-col gap-3">
+              <p className="text-white text-sm font-medium flex items-center gap-2">
+                <Link size={16} /> 邀请链接
+              </p>
               <p className="text-gray-400 text-xs break-all font-mono">{inviteLink || '加载中...'}</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="primary" onClick={copyInviteLink}>
-                <Copy size={16} className="mr-2" /> 复制链接
-              </Button>
-              <Button variant="outline">
-                <Share2 size={16} className="mr-2" /> 分享
+              <Button variant="primary" size="sm" onClick={copyInviteLink}>
+                <Copy size={14} className="mr-2" /> 复制链接
               </Button>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        {/* 搜索 */}
+          <Card className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border-green-500/30">
+            <div className="flex flex-col gap-3">
+              <p className="text-white text-sm font-medium flex items-center gap-2">
+                <Hash size={16} /> 邀请码
+              </p>
+              <p className="text-2xl font-bold text-green-400 font-mono">{inviteCode || '加载中...'}</p>
+              <Button variant="primary" size="sm" onClick={copyInviteCode}>
+                <Copy size={14} className="mr-2" /> 复制邀请码
+              </Button>
+            </div>
+          </Card>
+        </div>
+
         <Card>
           <div className="flex gap-4">
             <div className="flex-1">
@@ -156,7 +175,6 @@ export const Invites = () => {
           </div>
         </Card>
 
-        {/* 邀请列表 */}
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full">
