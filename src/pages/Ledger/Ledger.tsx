@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
+import { Input } from '@/components/Forms/Input'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -37,7 +38,7 @@ export const Ledger = () => {
     setLoading(true)
     let query = supabase
       .from('transactions')
-      .select('*, user:users(email, username)')
+      .select('*')
       .order('created_at', { ascending: false })
 
     if (user?.role !== 'SuperAdmin' && user?.role !== 'Admin') {
@@ -68,7 +69,7 @@ export const Ledger = () => {
       ['ID', '用户', '类型', '金额', '说明', '时间'],
       ...entries.map(e => [
         e.id.slice(0, 8),
-        e.user?.email || e.user_id,
+        e.user_id,
         e.type,
         e.amount,
         e.description || '',
@@ -93,7 +94,7 @@ export const Ledger = () => {
   }
 
   const filtered = entries.filter(e => {
-    const matchSearch = e.id.includes(search) || e.user?.email?.includes(search)
+    const matchSearch = e.id.includes(search) || e.user_id.includes(search)
     const matchType = !filterType || e.type === filterType
     return matchSearch && matchType
   })
@@ -186,7 +187,7 @@ export const Ledger = () => {
                 {filtered.map((entry) => (
                   <tr key={entry.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
                     <td className="px-4 py-3 text-gray-400 text-xs font-mono">{entry.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3 text-white text-sm">{entry.user?.email || entry.user_id}</td>
+                    <td className="px-4 py-3 text-white text-sm">{entry.user_id}</td>
                     <td className="px-4 py-3">
                       <Badge variant="info">{typeLabels[entry.type] || entry.type}</Badge>
                     </td>
