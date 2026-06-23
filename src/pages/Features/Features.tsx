@@ -1,170 +1,229 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
-import { Input } from '@/components/Forms/Input'
-import { Grid, Plus, Edit, Trash2, Check, X, Star, Save } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  Zap, Shield, Users, Wallet, CheckSquare, MessageSquare,
+  Bell, Settings, BarChart3, Clock, Database, Cloud,
+  RefreshCw, Plus, Edit2, Trash2, X
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface Feature {
+  id: string
+  name: string
+  icon: string
+  description: string
+  status: string
+  created_at: string
+}
+
 export const Features = () => {
+  const [features, setFeatures] = useState<Feature[]>([])
+  const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
-  const [editingFeature, setEditingFeature] = useState<any>(null)
-  const [features, setFeatures] = useState([
-    { id: 1, name: '数据去重检测', category: '数据处理', price: 0, desc: '去除重复号码', enabled: true, popular: true },
-    { id: 2, name: 'WhatsApp检测', category: '号码检测', price: 0.05, desc: '注册/头像检测', enabled: true, popular: true },
-    { id: 3, name: 'Telegram检测', category: '号码检测', price: 0.05, desc: '注册/用户名检测', enabled: true, popular: false },
-    { id: 4, name: '运营商检测', category: '运营商', price: 0.03, desc: '号码类型检测', enabled: true, popular: false },
-    { id: 5, name: 'Signal检测', category: '号码检测', price: 0.05, desc: 'Signal注册检测', enabled: false, popular: false },
-    { id: 6, name: '空号检测', category: '号码检测', price: 0.02, desc: '空号/有效性检测', enabled: true, popular: false },
-  ])
+  const [newName, setNewName] = useState('')
+  const [newIcon, setNewIcon] = useState('')
+  const [newDescription, setNewDescription] = useState('')
 
-  const [newFeature, setNewFeature] = useState({ name: '', category: '', price: '', desc: '', enabled: true })
-  const [editForm, setEditForm] = useState({ name: '', category: '', price: '', desc: '', enabled: true })
+  const loadFeatures = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('features')
+      .select('*')
+      .order('created_at', { ascending: true })
 
-  const handleCreate = () => {
-    if (!newFeature.name || !newFeature.category) {
-      toast.error('请填写完整信息')
+    if (error) {
+      toast.error('加载功能列表失败: ' + error.message)
+    } else {
+      setFeatures(data || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadFeatures()
+  }, [])
+
+  const handleCreate = async () => {
+    if (!newName) {
+      toast.error('请输入功能名称')
       return
     }
-    setFeatures([...features, {
-      id: Date.now(),
-      name: newFeature.name,
-      category: newFeature.category,
-      price: Number(newFeature.price) || 0,
-      desc: newFeature.desc || '暂无描述',
-      enabled: newFeature.enabled,
-      popular: false,
-    }])
-    toast.success(`功能 ${newFeature.name} 已创建`)
-    setShowCreate(false)
-    setNewFeature({ name: '', category: '', price: '', desc: '', enabled: true })
-  }
 
-  const handleEdit = (item: any) => {
-    setEditingFeature(item)
-    setEditForm({
-      name: item.name,
-      category: item.category,
-      price: String(item.price),
-      desc: item.desc || '',
-      enabled: item.enabled,
-    })
-    setShowEdit(true)
-  }
+    const { error } = await supabase
+      .from('features')
+      .insert({
+        name: newName,
+        icon: newIcon || 'Zap',
+        description: newDescription || '',
+        status: 'active'
+      })
 
-  const handleSaveEdit = () => {
-    if (!editForm.name || !editForm.category) {
-      toast.error('请填写完整信息')
-      return
+    if (error) {
+      toast.error('创建失败: ' + error.message)
+    } else {
+      toast.success('功能创建成功')
+      setShowCreate(false)
+      setNewName('')
+      setNewIcon('')
+      setNewDescription('')
+      loadFeatures()
     }
-    setFeatures(features.map(f => 
-      f.id === editingFeature.id ? {
-        ...f,
-        name: editForm.name,
-        category: editForm.category,
-        price: Number(editForm.price) || 0,
-        desc: editForm.desc || '暂无描述',
-        enabled: editForm.enabled,
-      } : f
-    ))
-    toast.success(`功能 ${editForm.name} 已更新`)
-    setShowEdit(false)
-    setEditingFeature(null)
   }
 
-  const handleToggle = (id: number) => {
-    setFeatures(features.map(f => f.id === id ? { ...f, enabled: !f.enabled } : f))
-    toast.success('功能状态已更新')
-  }
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+    const { error } = await supabase
+      .from('features')
+      .update({ status: newStatus })
+      .eq('id', id)
 
-  const handleDelete = (id: number, name: string) => {
-    if (confirm(`确定要删除功能 ${name} 吗？`)) {
-      setFeatures(features.filter(f => f.id !== id))
-      toast.success(`功能 ${name} 已删除`)
+    if (error) {
+      toast.error('更新失败: ' + error.message)
+    } else {
+      toast.success(`功能已${newStatus === 'active' ? '启用' : '停用'}`)
+      loadFeatures()
     }
+  }
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`确定要删除功能 ${name} 吗？`)) return
+
+    const { error } = await supabase
+      .from('features')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error('删除失败: ' + error.message)
+    } else {
+      toast.success('功能已删除')
+      loadFeatures()
+    }
+  }
+
+  const iconMap: Record<string, any> = {
+    Zap, Shield, Users, Wallet, CheckSquare, MessageSquare,
+    Bell, Settings, BarChart3, Clock, Database, Cloud
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-white">功能中心</h1><p className="text-muted text-sm">管理检测功能</p></div>
-        <Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={18} className="mr-2" />新增功能</Button>
-      </div>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">功能中心</h1>
+            <p className="text-gray-400 text-sm">管理平台所有功能模块</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadFeatures}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+            <Button variant="primary" onClick={() => setShowCreate(true)}>
+              <Plus size={16} className="mr-2" /> 添加功能
+            </Button>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {features.map(f => (
-          <Card key={f.id} className="relative">
-            {f.popular && <div className="absolute -top-2 right-4"><Badge variant="orange">🔥 热门</Badge></div>}
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{f.name}</h3>
-              <Badge variant={f.enabled ? 'green' : 'red'}>{f.enabled ? '已上架' : '已下架'}</Badge>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {features.map((feature) => {
+            const IconComponent = iconMap[feature.icon] || Zap
+            return (
+              <Card key={feature.id} className="hover:border-blue-500/50 transition-colors">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-500/20 rounded-lg">
+                      <IconComponent className="text-blue-400" size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-white font-semibold">{feature.name}</h3>
+                      <p className="text-gray-400 text-sm">{feature.description}</p>
+                      <div className="mt-2">
+                        <Badge variant={feature.status === 'active' ? 'success' : 'default'}>
+                          {feature.status === 'active' ? '已启用' : '已停用'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleToggleStatus(feature.id, feature.status)}
+                      className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(feature.id, feature.name)}
+                      className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </Card>
+            )
+          })}
+          {features.length === 0 && (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              暂无功能模块
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="blue">{f.category}</Badge>
-              <span className="text-sm text-muted">{f.price === 0 ? '免费' : `¥${f.price}/条`}</span>
-            </div>
-            <p className="text-sm text-muted mt-2">{f.desc}</p>
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-              <button onClick={() => handleEdit(f)} className="p-2 rounded-lg bg-panel/50 hover:bg-blue/10"><Edit size={16} className="text-blue" /></button>
-              <button onClick={() => handleToggle(f.id)} className="p-2 rounded-lg bg-panel/50 hover:bg-panel/70">
-                {f.enabled ? <X size={16} className="text-red" /> : <Check size={16} className="text-green" />}
-              </button>
-              <button onClick={() => handleDelete(f.id, f.name)} className="p-2 rounded-lg bg-panel/50 hover:bg-red/10"><Trash2 size={16} className="text-red" /></button>
-            </div>
-          </Card>
-        ))}
-      </div>
+          )}
+        </div>
 
-      {/* 编辑弹窗 */}
-      {showEdit && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
-          <div className="w-full max-w-md bg-panel border border-border rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-4">编辑功能</h2>
-            <div className="space-y-4">
-              <Input label="功能名称" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
-              <Input label="分类" value={editForm.category} onChange={(e) => setEditForm({...editForm, category: e.target.value})} />
-              <Input label="单价 (¥/条)" type="number" step="0.001" value={editForm.price} onChange={(e) => setEditForm({...editForm, price: e.target.value})} />
-              <Input label="描述" value={editForm.desc} onChange={(e) => setEditForm({...editForm, desc: e.target.value})} />
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
-                  <input type="checkbox" checked={editForm.enabled} onChange={(e) => setEditForm({...editForm, enabled: e.target.checked})} className="w-4 h-4 accent-blue" />
-                  上架
-                </label>
+        {showCreate && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">添加功能</h2>
+                <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
               </div>
-              <div className="flex gap-3">
-                <Button variant="primary" className="flex-1" onClick={handleSaveEdit}><Save size={16} className="mr-1" />保存</Button>
-                <Button variant="ghost" className="flex-1" onClick={() => setShowEdit(false)}>取消</Button>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">名称</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">图标 (组件名)</label>
+                  <input
+                    type="text"
+                    value={newIcon}
+                    onChange={(e) => setNewIcon(e.target.value)}
+                    placeholder="Zap, Shield, Users..."
+                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">描述</label>
+                  <input
+                    type="text"
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <Button className="w-full" onClick={handleCreate}>创建</Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 创建弹窗 */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
-          <div className="w-full max-w-md bg-panel border border-border rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-4">新增功能</h2>
-            <div className="space-y-4">
-              <Input label="功能名称" value={newFeature.name} onChange={(e) => setNewFeature({...newFeature, name: e.target.value})} />
-              <Input label="分类" value={newFeature.category} onChange={(e) => setNewFeature({...newFeature, category: e.target.value})} />
-              <Input label="单价 (¥/条)" type="number" step="0.001" value={newFeature.price} onChange={(e) => setNewFeature({...newFeature, price: e.target.value})} />
-              <Input label="描述" value={newFeature.desc} onChange={(e) => setNewFeature({...newFeature, desc: e.target.value})} />
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
-                  <input type="checkbox" checked={newFeature.enabled} onChange={(e) => setNewFeature({...newFeature, enabled: e.target.checked})} className="w-4 h-4 accent-blue" />
-                  立即上架
-                </label>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="primary" className="flex-1" onClick={handleCreate}>创建</Button>
-                <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>取消</Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
