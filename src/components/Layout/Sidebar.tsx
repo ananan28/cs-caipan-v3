@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Gift, Wallet, TrendingUp,
   CheckSquare, Ticket, Megaphone, Settings, FileText,
   Shield, User, ChevronLeft, ChevronRight,
-  ShoppingCart, BookOpen, DollarsSign, Plug, Grid,
+  ShoppingCart, BookOpen, DollarSign, Plug, Grid,
   Bell, BarChart3, MessageSquare, CreditCard
 } from 'lucide-react'
 import { useNotificationStore } from '@/store/notificationStore'
@@ -24,7 +24,7 @@ const menuItems = [
   { path: '/recharge', icon: CreditCard, label: '自助充值' },
   { path: '/payment-addresses', icon: CreditCard, label: '收款地址' },
   { path: '/finance', icon: TrendingUp, label: '财务管理' },
-  { path: '/transactions', icon: DollarsSign, label: '交易流水' },
+  { path: '/transactions', icon: DollarSign, label: '交易流水' },
   { path: '/orders', icon: ShoppingCart, label: '订单中心' },
   { path: '/ledger', icon: BookOpen, label: '查账中心' },
   { path: '/tasks', icon: CheckSquare, label: '任务中心' },
