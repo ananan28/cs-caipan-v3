@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   MessageSquare, Send, User, RefreshCw, Search,
-  Phone, Video, Smile, Paperclip, X, Users as UsersIcon
+  Phone, Video, Smile, Paperclip, X, Users as UsersIcon,
+  Image, File, Upload, Loader
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -19,6 +20,8 @@ interface Message {
   type: string
   status: string
   created_at: string
+  file_url?: string
+  file_name?: string
 }
 
 interface Conversation {
@@ -52,8 +55,12 @@ export const Chat = () => {
   const [showEmoji, setShowEmoji] = useState(false)
   const [showUserSelector, setShowUserSelector] = useState(false)
   const [userSearch, setUserSearch] = useState('')
+  const [uploading, setUploading] = useState(false)
+  const [showFileMenu, setShowFileMenu] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const emojiRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
 
@@ -127,34 +134,110 @@ export const Chat = () => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
         setShowEmoji(false)
       }
+      if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
+        setShowFileMenu(false)
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSend = async () => {
-    if (!inputMessage.trim() || !selectedConv) return
+  const fileMenuRef = useRef<HTMLDivElement>(null)
+
+  const handleSendMessage = async (content: string, type: string = 'text', fileUrl?: string, fileName?: string) => {
+    if (!selectedConv) {
+      toast.error('请先选择会话')
+      return
+    }
 
     const { error } = await supabase
       .from('messages')
       .insert({
         conversation_id: selectedConv,
         sender_id: user?.id,
-        content: inputMessage,
-        type: 'text',
-        status: 'sent'
+        content: content || (type === 'image' ? '📷 图片' : '📎 文件'),
+        type: type,
+        status: 'sent',
+        file_url: fileUrl || null,
+        file_name: fileName || null
       })
 
     if (error) {
       toast.error('发送失败: ' + error.message)
-    } else {
-      setInputMessage('')
-      await supabase
-        .from('conversations')
-        .update({ last_message: inputMessage })
-        .eq('id', selectedConv)
-      loadMessages(selectedConv)
+      return false
     }
+
+    await supabase
+      .from('conversations')
+      .update({ last_message: content || (type === 'image' ? '📷 图片' : '📎 文件') })
+      .eq('id', selectedConv)
+    loadMessages(selectedConv)
+    return true
+  }
+
+  const handleSend = async () => {
+    if (!inputMessage.trim()) return
+    await handleSendMessage(inputMessage, 'text')
+    setInputMessage('')
+  }
+
+  // 上传文件到 Supabase Storage
+  const uploadFile = async (file: File, type: 'image' | 'file') => {
+    if (!selectedConv) {
+      toast.error('请先选择会话')
+      return
+    }
+
+    setUploading(true)
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `chat/${selectedConv}/${fileName}`
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('chat-files')
+        .upload(filePath, file)
+
+      if (error) {
+        toast.error('上传失败: ' + error.message)
+        setUploading(false)
+        return
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(filePath)
+
+      await handleSendMessage(
+        type === 'image' ? '📷 图片' : `📎 ${file.name}`,
+        type === 'image' ? 'image' : 'file',
+        urlData.publicUrl,
+        file.name
+      )
+
+      toast.success('文件已发送')
+    } catch (error) {
+      toast.error('上传失败')
+    }
+
+    setUploading(false)
+    setShowFileMenu(false)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadFile(file, 'file')
+    }
+    e.target.value = ''
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadFile(file, 'image')
+    }
+    e.target.value = ''
   }
 
   const handleCreateConversation = async (targetUserId: string) => {
@@ -212,6 +295,40 @@ export const Chat = () => {
     const name = u.username || u.email || ''
     return name.includes(userSearch) || u.email.includes(userSearch)
   })
+
+  const renderMessageContent = (msg: Message) => {
+    if (msg.type === 'image' && msg.file_url) {
+      return (
+        <div>
+          <img 
+            src={msg.file_url} 
+            alt={msg.file_name || '图片'} 
+            className="max-w-[200px] max-h-[200px] rounded-lg object-cover cursor-pointer"
+            onClick={() => window.open(msg.file_url, '_blank')}
+          />
+          <p className="text-xs opacity-70 mt-1">{msg.file_name}</p>
+        </div>
+      )
+    }
+    if (msg.type === 'file' && msg.file_url) {
+      return (
+        <div>
+          <div className="flex items-center gap-2 bg-white/10 rounded-lg p-2">
+            <File size={20} />
+            <a 
+              href={msg.file_url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-sm underline hover:text-blue-300"
+            >
+              {msg.file_name || '下载文件'}
+            </a>
+          </div>
+        </div>
+      )
+    }
+    return <p className="text-sm">{msg.content}</p>
+  }
 
   if (loading) {
     return (
@@ -306,7 +423,7 @@ export const Chat = () => {
                   {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[70%] p-3 rounded-lg ${msg.sender_id === user?.id ? 'bg-blue-500 text-white' : 'bg-[#1a1f35] text-white'}`}>
-                        <p className="text-sm">{msg.content}</p>
+                        {renderMessageContent(msg)}
                         <p className="text-xs opacity-70 mt-1">{new Date(msg.created_at).toLocaleTimeString()}</p>
                       </div>
                     </div>
@@ -316,7 +433,10 @@ export const Chat = () => {
 
                 <div className="p-4 border-t border-gray-800">
                   <div className="flex gap-2 relative">
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg" onClick={() => setShowEmoji(!showEmoji)}>
+                    <button
+                      className="p-2 hover:bg-[#1a1f35] rounded-lg"
+                      onClick={() => setShowEmoji(!showEmoji)}
+                    >
                       <Smile size={18} className="text-gray-400" />
                     </button>
 
@@ -330,18 +450,60 @@ export const Chat = () => {
                       </div>
                     )}
 
-                    <button className="p-2 hover:bg-[#1a1f35] rounded-lg">
-                      <Paperclip size={18} className="text-gray-400" />
-                    </button>
+                    <div className="relative">
+                      <button
+                        className="p-2 hover:bg-[#1a1f35] rounded-lg"
+                        onClick={() => setShowFileMenu(!showFileMenu)}
+                      >
+                        <Paperclip size={18} className="text-gray-400" />
+                      </button>
+
+                      {showFileMenu && (
+                        <div ref={fileMenuRef} className="absolute bottom-14 left-0 bg-[#1a1f35] border border-gray-700 rounded-xl p-2 min-w-[160px] z-50">
+                          <button
+                            onClick={() => imageInputRef.current?.click()}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-white text-sm"
+                          >
+                            <Image size={16} /> 图片
+                          </button>
+                          <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-white text-sm"
+                          >
+                            <File size={16} /> 文件
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+
                     <Input
                       value={inputMessage}
                       onChange={(e: any) => setInputMessage(e.target.value)}
                       onKeyDown={(e: any) => e.key === 'Enter' && handleSend()}
                       placeholder="输入消息..."
                       className="flex-1 bg-[#1a1f35] border-gray-700 text-white"
+                      disabled={uploading}
                     />
-                    <button onClick={handleSend} className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600">
-                      <Send size={18} className="text-white" />
+                    <button
+                      onClick={handleSend}
+                      disabled={uploading}
+                      className="p-2 bg-blue-500 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                    >
+                      {uploading ? <Loader size={18} className="animate-spin text-white" /> : <Send size={18} className="text-white" />}
                     </button>
                   </div>
                 </div>
