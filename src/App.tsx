@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
 import { useAuthStore } from './store/authStore'
 import { Layout } from './components/Layout/Layout'
 import { FloatingChat } from './components/Chat/FloatingChat'
@@ -31,12 +30,15 @@ import { Monitor } from './pages/Monitor/Monitor'
 import { PriceControl } from './pages/PriceControl/PriceControl'
 import { Changelog } from './pages/Changelog/Changelog'
 import { NotFound } from './pages/NotFound/NotFound'
+import { Recharge } from './pages/Recharge/Recharge'
+import { PaymentAddresses } from './pages/Admin/PaymentAddresses'
 import { LanguageProvider } from './context/LanguageContext'
 import { ThemeProvider } from './context/ThemeContext'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? children : <Navigate to="/login" />
+  const { token } = useAuthStore()
+  if (!token) return <Navigate to="/login" replace />
+  return <>{children}</>
 }
 
 function App() {
@@ -44,7 +46,6 @@ function App() {
     <LanguageProvider>
       <ThemeProvider>
         <BrowserRouter>
-          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
@@ -73,20 +74,18 @@ function App() {
               <Route path="scheduled-tasks" element={<ScheduledTasks />} />
               <Route path="backup" element={<Backup />} />
               <Route path="monitor" element={<Monitor />} />
-          <Route path="price-control" element={<PriceControl />} />
-          <Route path="changelog" element={<Changelog />} />
+              <Route path="price-control" element={<PriceControl />} />
+              <Route path="changelog" element={<Changelog />} />
+              <Route path="recharge" element={<Recharge />} />
+              <Route path="payment-addresses" element={<PaymentAddresses />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
-          <FloatingChat />
         </BrowserRouter>
+        <FloatingChat />
       </ThemeProvider>
     </LanguageProvider>
   )
 }
-export default App
-// 在 App.tsx 的导入区域添加
-import { Recharge } from './pages/Recharge/Recharge'
 
-// 在路由中添加
-<Route path="recharge" element={<Recharge />} />
+export default App
