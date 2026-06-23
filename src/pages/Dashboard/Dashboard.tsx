@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
+import { Button } from '@/components/Common/Button'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
@@ -34,7 +35,6 @@ export const Dashboard = () => {
   const loadDashboard = async () => {
     setLoading(true)
 
-    // 用户统计
     const { count: totalUsers } = await supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
@@ -44,7 +44,6 @@ export const Dashboard = () => {
       .select('*', { count: 'exact', head: true })
       .eq('status', 'active')
 
-    // 交易统计
     const { data: transactions } = await supabase
       .from('transactions')
       .select('*')
@@ -57,7 +56,6 @@ export const Dashboard = () => {
     const today = new Date().toISOString().split('T')[0]
     const todayTransactions = transactions?.filter(t => t.created_at?.startsWith(today)).length || 0
 
-    // 最近交易
     const { data: recent } = await supabase
       .from('transactions')
       .select('*, user:users(email, username)')
@@ -128,7 +126,6 @@ export const Dashboard = () => {
   return (
     <div className="p-6 bg-[#0a0f1f] min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* 头部 */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-white">控制台</h1>
@@ -141,7 +138,6 @@ export const Dashboard = () => {
           </Button>
         </div>
 
-        {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map((stat) => (
             <Card key={stat.label} className="bg-[#12182b] border border-gray-800">
@@ -161,7 +157,6 @@ export const Dashboard = () => {
           ))}
         </div>
 
-        {/* 最近交易 */}
         <Card>
           <div className="p-4 border-b border-gray-800 flex items-center justify-between">
             <h3 className="text-white font-semibold">最近交易</h3>
