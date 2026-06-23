@@ -1,171 +1,257 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
 import { Input } from '@/components/Forms/Input'
-import { Plug, Plus, Edit, Trash2, Check, X, RefreshCw, Server, Database, Save } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  Server, Search, RefreshCw, Plus, Edit2, Trash2,
+  CheckCircle, XCircle, Clock, Copy, Key, X
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface ApiKey {
+  id: string
+  name: string
+  key: string
+  permissions: string[]
+  status: string
+  expires_at: string
+  created_at: string
+}
+
 export const ApiCenter = () => {
+  const [keys, setKeys] = useState<ApiKey[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [showCreate, setShowCreate] = useState(false)
-  const [showEdit, setShowEdit] = useState(false)
-  const [editingApi, setEditingApi] = useState<any>(null)
-  const [apis, setApis] = useState([
-    { id: 1, name: 'WhatsApp接口', type: 'WhatsApp', cost: 0.03, status: 'enabled', remark: '注册检测、头像检测' },
-    { id: 2, name: 'Telegram接口', type: 'Telegram', cost: 0.03, status: 'enabled', remark: '注册检测、用户名检测' },
-    { id: 3, name: '运营商接口', type: 'Carrier', cost: 0.02, status: 'enabled', remark: '号码类型检测' },
-    { id: 4, name: 'Signal接口', type: 'Signal', cost: 0.04, status: 'disabled', remark: 'Signal检测' },
-  ])
+  const [newName, setNewName] = useState('')
+  const [newPermissions, setNewPermissions] = useState('')
 
-  const [newApi, setNewApi] = useState({ name: '', type: '', cost: '', remark: '', status: 'enabled' })
-  const [editForm, setEditForm] = useState({ name: '', type: '', cost: '', remark: '', status: 'enabled' })
+  const loadKeys = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('api_keys')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-  const handleCreate = () => {
-    if (!newApi.name || !newApi.type || !newApi.cost) {
-      toast.error('请填写完整信息')
+    if (error) {
+      toast.error('加载API密钥失败: ' + error.message)
+    } else {
+      setKeys(data || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadKeys()
+  }, [])
+
+  const generateKey = () => {
+    return 'sk_' + Array.from({ length: 32 }, () => 
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 62)]
+    ).join('')
+  }
+
+  const handleCreate = async () => {
+    if (!newName) {
+      toast.error('请输入名称')
       return
     }
-    setApis([...apis, {
-      id: Date.now(),
-      name: newApi.name,
-      type: newApi.type,
-      cost: Number(newApi.cost),
-      status: newApi.status as 'enabled' | 'disabled',
-      remark: newApi.remark || '暂无备注',
-    }])
-    toast.success(`接口 ${newApi.name} 已创建`)
-    setShowCreate(false)
-    setNewApi({ name: '', type: '', cost: '', remark: '', status: 'enabled' })
-  }
 
-  const handleEdit = (item: any) => {
-    setEditingApi(item)
-    setEditForm({
-      name: item.name,
-      type: item.type,
-      cost: String(item.cost),
-      remark: item.remark || '',
-      status: item.status,
-    })
-    setShowEdit(true)
-  }
+    const newKey = generateKey()
+    const { error } = await supabase
+      .from('api_keys')
+      .insert({
+        name: newName,
+        key: newKey,
+        permissions: newPermissions.split(',').map(p => p.trim()).filter(Boolean),
+        status: 'active',
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+      })
 
-  const handleSaveEdit = () => {
-    if (!editForm.name || !editForm.type || !editForm.cost) {
-      toast.error('请填写完整信息')
-      return
+    if (error) {
+      toast.error('创建失败: ' + error.message)
+    } else {
+      toast.success('API密钥创建成功')
+      setShowCreate(false)
+      setNewName('')
+      setNewPermissions('')
+      loadKeys()
     }
-    setApis(apis.map(a => 
-      a.id === editingApi.id ? {
-        ...a,
-        name: editForm.name,
-        type: editForm.type,
-        cost: Number(editForm.cost),
-        status: editForm.status as 'enabled' | 'disabled',
-        remark: editForm.remark || '暂无备注',
-      } : a
-    ))
-    toast.success(`接口 ${editForm.name} 已更新`)
-    setShowEdit(false)
-    setEditingApi(null)
   }
 
-  const handleToggle = (id: number) => {
-    setApis(apis.map(a => a.id === id ? { ...a, status: a.status === 'enabled' ? 'disabled' : 'enabled' } : a))
-    toast.success('接口状态已更新')
-  }
+  const handleToggleStatus = async (id: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active'
+    const { error } = await supabase
+      .from('api_keys')
+      .update({ status: newStatus })
+      .eq('id', id)
 
-  const handleDelete = (id: number, name: string) => {
-    if (confirm(`确定要删除接口 ${name} 吗？`)) {
-      setApis(apis.filter(a => a.id !== id))
-      toast.success(`接口 ${name} 已删除`)
+    if (error) {
+      toast.error('更新失败: ' + error.message)
+    } else {
+      toast.success(`密钥已${newStatus === 'active' ? '启用' : '停用'}`)
+      loadKeys()
     }
+  }
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`确定要删除密钥 ${name} 吗？`)) return
+
+    const { error } = await supabase
+      .from('api_keys')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error('删除失败: ' + error.message)
+    } else {
+      toast.success('密钥已删除')
+      loadKeys()
+    }
+  }
+
+  const copyKey = (key: string) => {
+    navigator.clipboard.writeText(key)
+    toast.success('已复制')
+  }
+
+  const filtered = keys.filter(k => k.name.includes(search) || k.key.includes(search))
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-white">接口中心</h1><p className="text-muted text-sm">管理接口提供商</p></div>
-        <div className="flex gap-2">
-          <Button variant="ghost"><RefreshCw size={18} /></Button>
-          <Button variant="primary" onClick={() => setShowCreate(true)}><Plus size={18} className="mr-2" />新增接口</Button>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">接口中心</h1>
+            <p className="text-gray-400 text-sm">管理API密钥和接口权限</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadKeys}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+            <Button variant="primary" onClick={() => setShowCreate(true)}>
+              <Plus size={16} className="mr-2" /> 创建密钥
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {apis.map(api => (
-          <Card key={api.id}>
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white">{api.name}</h3>
-              <Badge variant={api.status === 'enabled' ? 'green' : 'red'}>{api.status === 'enabled' ? '🟢 启用' : '🔴 停用'}</Badge>
+        <Card>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="搜索密钥..."
+                value={search}
+                onChange={(e: any) => setSearch(e.target.value)}
+                className="bg-[#1a1f35] border-gray-700 text-white"
+                prefix={<Search size={16} className="text-gray-400" />}
+              />
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="blue">{api.type}</Badge>
-              <span className="text-sm text-muted">成本: ¥{api.cost}/条</span>
-            </div>
-            <p className="text-sm text-muted mt-2">{api.remark}</p>
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-              <button onClick={() => handleEdit(api)} className="p-2 rounded-lg bg-panel/50 hover:bg-blue/10"><Edit size={16} className="text-blue" /></button>
-              <button onClick={() => handleToggle(api.id)} className="p-2 rounded-lg bg-panel/50 hover:bg-panel/70">
-                {api.status === 'enabled' ? <X size={16} className="text-red" /> : <Check size={16} className="text-green" />}
-              </button>
-              <button onClick={() => handleDelete(api.id, api.name)} className="p-2 rounded-lg bg-panel/50 hover:bg-red/10"><Trash2 size={16} className="text-red" /></button>
-            </div>
-          </Card>
-        ))}
-      </div>
+          </div>
+        </Card>
 
-      {/* 编辑弹窗 */}
-      {showEdit && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4" onClick={() => setShowEdit(false)}>
-          <div className="w-full max-w-md bg-panel border border-border rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-4">编辑接口</h2>
-            <div className="space-y-4">
-              <Input label="接口名称" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
-              <Input label="接口类型" value={editForm.type} onChange={(e) => setEditForm({...editForm, type: e.target.value})} />
-              <Input label="单价 (¥/条)" type="number" step="0.001" value={editForm.cost} onChange={(e) => setEditForm({...editForm, cost: e.target.value})} />
-              <Input label="备注" value={editForm.remark} onChange={(e) => setEditForm({...editForm, remark: e.target.value})} />
-              <div>
-                <label className="text-sm font-bold text-muted block mb-1.5">状态</label>
-                <select className="w-full bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none focus:border-sky/50" value={editForm.status} onChange={(e) => setEditForm({...editForm, status: e.target.value})}>
-                  <option value="enabled">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
+        <div className="space-y-4">
+          {filtered.map((key) => (
+            <Card key={key.id} className="hover:border-blue-500/30 transition-colors">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <Server className="text-blue-400" size={20} />
+                    <h3 className="text-white font-semibold">{key.name}</h3>
+                    <Badge variant={key.status === 'active' ? 'success' : 'default'}>
+                      {key.status === 'active' ? '启用' : '停用'}
+                    </Badge>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="text-gray-400 text-sm bg-[#1a1f35] px-3 py-1 rounded">
+                      {key.key.slice(0, 20)}...{key.key.slice(-8)}
+                    </code>
+                    <button
+                      onClick={() => copyKey(key.key)}
+                      className="p-1 hover:text-white text-gray-400"
+                    >
+                      <Copy size={14} />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {key.permissions?.map((p: string) => (
+                      <Badge key={p} variant="info">{p}</Badge>
+                    ))}
+                    {(!key.permissions || key.permissions.length === 0) && (
+                      <span className="text-gray-500 text-xs">无权限限制</span>
+                    )}
+                  </div>
+                  <div className="mt-2 text-gray-500 text-xs">
+                    过期: {key.expires_at ? new Date(key.expires_at).toLocaleDateString() : '永不过期'}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleToggleStatus(key.id, key.status)}
+                    className="p-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(key.id, key.name)}
+                    className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <Button variant="primary" className="flex-1" onClick={handleSaveEdit}><Save size={16} className="mr-1" />保存</Button>
-                <Button variant="ghost" className="flex-1" onClick={() => setShowEdit(false)}>取消</Button>
+            </Card>
+          ))}
+          {filtered.length === 0 && (
+            <div className="text-center py-12 text-gray-400">暂无API密钥</div>
+          )}
+        </div>
+
+        {showCreate && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">创建API密钥</h2>
+                <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
+                  <X size={24} />
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">名称</label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="我的应用"
+                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">权限 (逗号分隔)</label>
+                  <input
+                    type="text"
+                    value={newPermissions}
+                    onChange={(e) => setNewPermissions(e.target.value)}
+                    placeholder="read,write,admin"
+                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <Button className="w-full" onClick={handleCreate}>创建</Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* 创建弹窗 */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4" onClick={() => setShowCreate(false)}>
-          <div className="w-full max-w-md bg-panel border border-border rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-bold text-white mb-4">新增接口</h2>
-            <div className="space-y-4">
-              <Input label="接口名称" value={newApi.name} onChange={(e) => setNewApi({...newApi, name: e.target.value})} />
-              <Input label="接口类型" value={newApi.type} onChange={(e) => setNewApi({...newApi, type: e.target.value})} />
-              <Input label="单价 (¥/条)" type="number" step="0.001" value={newApi.cost} onChange={(e) => setNewApi({...newApi, cost: e.target.value})} />
-              <Input label="备注" value={newApi.remark} onChange={(e) => setNewApi({...newApi, remark: e.target.value})} />
-              <div>
-                <label className="text-sm font-bold text-muted block mb-1.5">状态</label>
-                <select className="w-full bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none focus:border-sky/50" value={newApi.status} onChange={(e) => setNewApi({...newApi, status: e.target.value})}>
-                  <option value="enabled">启用</option>
-                  <option value="disabled">停用</option>
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="primary" className="flex-1" onClick={handleCreate}>创建</Button>
-                <Button variant="ghost" className="flex-1" onClick={() => setShowCreate(false)}>取消</Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
