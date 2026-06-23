@@ -9,8 +9,8 @@ import { useDetectionStore } from '@/store/detectionStore'
 import { DetectionItems } from './components/DetectionItems'
 import toast from 'react-hot-toast'
 import {
-  CheckSquare, Upload, Download, Play, Clock, CheckCircle, XCircle,
-  Search, Eye, Trash2, RefreshCw, Loader, X, Plus, Filter,
+  CheckSquare, Play, Clock, CheckCircle, XCircle,
+  Search, Trash2, RefreshCw, Loader, X,
   Settings, ListChecks
 } from 'lucide-react'
 
@@ -122,7 +122,7 @@ export const Tasks = () => {
     if (error) {
       toast.error('创建任务失败: ' + error.message)
     } else {
-      toast.success(`✅ 任务创建成功！共 ${numberList.length} 个号码，费用 $${totalCost.toFixed(2)}`)
+      toast.success('✅ 任务创建成功！共 ' + numberList.length + ' 个号码，费用 $' + totalCost.toFixed(2))
       setNumbers('')
       loadTasks()
       setActiveTab('history')
@@ -200,31 +200,19 @@ export const Tasks = () => {
         <div className="flex gap-1 border-b border-gray-800">
           <button
             onClick={() => setActiveTab('platforms')}
-            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
-              activeTab === 'platforms'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={'px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ' + (activeTab === 'platforms' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5' : 'text-gray-400 hover:text-white hover:bg-white/5')}
           >
             <Play size={16} /> 创建任务
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
-              activeTab === 'history'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={'px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ' + (activeTab === 'history' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5' : 'text-gray-400 hover:text-white hover:bg-white/5')}
           >
             <ListChecks size={16} /> 任务历史 ({tasks.length})
           </button>
           <button
             onClick={() => setActiveTab('items')}
-            className={`px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ${
-              activeTab === 'items'
-                ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
-                : 'text-gray-400 hover:text-white hover:bg-white/5'
-            }`}
+            className={'px-4 py-2.5 text-sm font-medium transition-all rounded-t-lg flex items-center gap-2 ' + (activeTab === 'items' ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5' : 'text-gray-400 hover:text-white hover:bg-white/5')}
           >
             <Settings size={16} /> 检测项管理
           </button>
@@ -241,11 +229,9 @@ export const Tasks = () => {
                   <div
                     key={platform.id}
                     onClick={() => setSelectedPlatform(platform.id)}
-                    className={`bg-[#12182b] border-2 rounded-xl p-6 text-center cursor-pointer transition-all hover:scale-105 ${
-                      isSelected ? 'border-blue-400 shadow-lg shadow-blue-500/20' : 'border-gray-700 hover:border-gray-500'
-                    }`}
+                    className={'bg-[#12182b] border-2 rounded-xl p-6 text-center cursor-pointer transition-all hover:scale-105 ' + (isSelected ? 'border-blue-400 shadow-lg shadow-blue-500/20' : 'border-gray-700 hover:border-gray-500')}
                   >
-                    <div className={`text-4xl mb-2 bg-gradient-to-r ${platform.color} bg-clip-text text-transparent`}>
+                    <div className={'text-4xl mb-2 bg-gradient-to-r ' + platform.color + ' bg-clip-text text-transparent'}>
                       {platform.icon}
                     </div>
                     <h3 className="text-white font-semibold">{platform.label}</h3>
@@ -352,7 +338,7 @@ export const Tasks = () => {
                   value={searchTask}
                   onChange={(e: any) => setSearchTask(e.target.value)}
                   className="bg-[#1a1f35] border-gray-700 text-white"
-                  prefix={<Search size={16} className="text-gray-400} />}
+                  prefix={<Search size={16} className="text-gray-400" />}
                 />
               </div>
               <select
