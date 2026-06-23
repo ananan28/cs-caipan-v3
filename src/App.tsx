@@ -85,3 +85,8 @@ function App() {
   )
 }
 export default App
+// 在 App.tsx 的导入区域添加
+import { Recharge } from './pages/Recharge/Recharge'
+
+// 在路由中添加
+<Route path="recharge" element={<Recharge />} />

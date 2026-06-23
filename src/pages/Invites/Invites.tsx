@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   Users, Copy, Gift, RefreshCw, Search, CheckCircle,
-  Award, Star, TrendingUp, Link, Share2
+  Award, Star, TrendingUp, Link, Share2, UserPlus
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -20,10 +20,6 @@ interface InviteRecord {
   reward: number
   status: string
   created_at: string
-  invitee?: {
-    email: string
-    username: string
-  }
 }
 
 export const Invites = () => {
@@ -42,14 +38,16 @@ export const Invites = () => {
   const loadInvites = async () => {
     setLoading(true)
 
+    // 直接查询 invites 表，不关联 users
     const { data, error } = await supabase
       .from('invites')
-      .select('*, invitee:users!invitee_id(email, username)')
+      .select('*')
       .eq('inviter_id', user?.id)
       .order('created_at', { ascending: false })
 
     if (error) {
       toast.error('加载邀请记录失败: ' + error.message)
+      setInvites([])
     } else {
       setInvites(data || [])
       const level1 = data?.filter(i => i.level === 1).length || 0
@@ -67,8 +65,9 @@ export const Invites = () => {
 
   useEffect(() => {
     loadInvites()
-    // 生成邀请链接
-    setInviteLink(`${window.location.origin}/register?ref=${user?.id}`)
+    if (user?.id) {
+      setInviteLink(`${window.location.origin}/register?ref=${user.id}`)
+    }
   }, [user])
 
   const copyInviteLink = () => {
@@ -77,7 +76,7 @@ export const Invites = () => {
   }
 
   const filtered = invites.filter(i => {
-    return i.invitee?.email?.includes(search) || i.id.includes(search)
+    return i.invitee_email?.includes(search) || i.id.includes(search)
   })
 
   if (loading) {
@@ -93,7 +92,10 @@ export const Invites = () => {
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">邀请系统</h1>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <UserPlus className="text-blue-400" />
+              邀请系统
+            </h1>
             <p className="text-gray-400 text-sm">邀请好友，赚取奖励</p>
           </div>
           <Button variant="outline" onClick={loadInvites}>
@@ -103,21 +105,21 @@ export const Invites = () => {
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 rounded-lg p-4">
             <div className="text-gray-400 text-sm">总邀请</div>
             <div className="text-white text-2xl font-bold">{stats.total}</div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 rounded-lg p-4">
             <div className="text-gray-400 text-sm">一级邀请</div>
-            <div className="text-blue-400 text-2xl font-bold">{stats.level1}</div>
+            <div className="text-green-400 text-2xl font-bold">{stats.level1}</div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 rounded-lg p-4">
             <div className="text-gray-400 text-sm">二级邀请</div>
             <div className="text-purple-400 text-2xl font-bold">{stats.level2}</div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 rounded-lg p-4">
             <div className="text-gray-400 text-sm">总奖励</div>
-            <div className="text-green-400 text-2xl font-bold">${stats.totalReward.toFixed(2)}</div>
+            <div className="text-yellow-400 text-2xl font-bold">${stats.totalReward.toFixed(2)}</div>
           </div>
         </div>
 
@@ -126,7 +128,7 @@ export const Invites = () => {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex-1 min-w-[200px]">
               <p className="text-white text-sm font-medium">邀请链接</p>
-              <p className="text-gray-400 text-xs break-all">{inviteLink}</p>
+              <p className="text-gray-400 text-xs break-all font-mono">{inviteLink || '加载中...'}</p>
             </div>
             <div className="flex gap-2">
               <Button variant="primary" onClick={copyInviteLink}>
@@ -171,7 +173,7 @@ export const Invites = () => {
                 {filtered.map((invite) => (
                   <tr key={invite.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
                     <td className="px-4 py-3 text-white text-sm">
-                      {invite.invitee?.email || invite.invitee_id}
+                      {invite.invitee_email || invite.invitee_id?.slice(0, 8) || '未知'}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={invite.level === 1 ? 'info' : 'purple'}>
@@ -194,7 +196,7 @@ export const Invites = () => {
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={5} className="text-center py-8 text-gray-400">
-                      暂无邀请记录
+                      暂无邀请记录，快去邀请好友吧！
                     </td>
                   </tr>
                 )}
