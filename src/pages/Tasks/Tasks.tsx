@@ -197,7 +197,6 @@ export const Tasks = () => {
           </Button>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 border-b border-gray-800">
           <button
             onClick={() => setActiveTab('platforms')}
@@ -231,112 +230,117 @@ export const Tasks = () => {
           </button>
         </div>
 
-        {/* 内容区域 */}
         {activeTab === 'items' && <DetectionItems />}
 
         {activeTab === 'platforms' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {platformCards.map((platform) => (
-              <Card
-                key={platform.id}
-                className={`cursor-pointer transition-all hover:scale-105 ${
-                  selectedPlatform === platform.id ? 'ring-2 ring-blue-400' : ''
-                }`}
-                onClick={() => setSelectedPlatform(platform.id)}
-              >
-                <div className="text-center">
-                  <div className={`text-3xl mb-2 bg-gradient-to-r ${platform.color} bg-clip-text text-transparent`}>
-                    {platform.icon}
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {platformCards.map((platform) => {
+                const isSelected = selectedPlatform === platform.id
+                return (
+                  <div
+                    key={platform.id}
+                    onClick={() => setSelectedPlatform(platform.id)}
+                    className={`bg-[#12182b] border-2 rounded-xl p-6 text-center cursor-pointer transition-all hover:scale-105 ${
+                      isSelected ? 'border-blue-400 shadow-lg shadow-blue-500/20' : 'border-gray-700 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className={`text-4xl mb-2 bg-gradient-to-r ${platform.color} bg-clip-text text-transparent`}>
+                      {platform.icon}
+                    </div>
+                    <h3 className="text-white font-semibold">{platform.label}</h3>
+                    {isSelected && (
+                      <div className="mt-2">
+                        <Badge variant="success">已选</Badge>
+                      </div>
+                    )}
                   </div>
-                  <h3 className="text-white font-semibold">{platform.label}</h3>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+                )
+              })}
+            </div>
 
-        {activeTab === 'platforms' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            <div className="lg:col-span-2 space-y-4">
-              <Card>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-white text-sm font-medium block mb-2">
-                      输入号码 <span className="text-gray-400">(每行一个)</span>
-                    </label>
-                    <textarea
-                      value={numbers}
-                      onChange={(e) => setNumbers(e.target.value)}
-                      className="w-full h-40 bg-[#1a1f35] border border-gray-700 rounded-lg text-white p-3 focus:outline-none focus:border-blue-500"
-                      placeholder="+8613800138000&#10;+8613800138001&#10;+8613800138002"
-                    />
-                    <div className="flex items-center justify-between mt-2">
-                      <span className="text-gray-400 text-sm">共 {numberCount} 个号码</span>
-                      <Button variant="ghost" size="sm" onClick={() => setNumbers('')}>
-                        <X size={14} className="mr-1" /> 清空
-                      </Button>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              <div className="lg:col-span-2 space-y-4">
+                <Card>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-white text-sm font-medium block mb-2">
+                        输入号码 <span className="text-gray-400">(每行一个)</span>
+                      </label>
+                      <textarea
+                        value={numbers}
+                        onChange={(e) => setNumbers(e.target.value)}
+                        className="w-full h-40 bg-[#1a1f35] border border-gray-700 rounded-lg text-white p-3 focus:outline-none focus:border-blue-500"
+                        placeholder="+8613800138000&#10;+8613800138001&#10;+8613800138002"
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-gray-400 text-sm">共 {numberCount} 个号码</span>
+                        <Button variant="ghost" size="sm" onClick={() => setNumbers('')}>
+                          <X size={14} className="mr-1" /> 清空
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
 
-              <Card>
-                <div className="space-y-3">
-                  <h3 className="text-white font-medium">检测项配置</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {detectionItemsConfig.map((item) => (
-                      <label key={item.id} className="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={() => toggleDetectionItem(item.id)}
-                          className="rounded border-gray-600 bg-[#1a1f35] text-blue-400 focus:ring-blue-400"
-                        />
-                        {item.label}
-                        <span className="text-gray-500 text-xs">(${getItemPrice(item.id).toFixed(3)})</span>
-                      </label>
-                    ))}
+                <Card>
+                  <div className="space-y-3">
+                    <h3 className="text-white font-medium">检测项配置</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {detectionItemsConfig.map((item) => (
+                        <label key={item.id} className="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedItems.includes(item.id)}
+                            onChange={() => toggleDetectionItem(item.id)}
+                            className="rounded border-gray-600 bg-[#1a1f35] text-blue-400 focus:ring-blue-400"
+                          />
+                          {item.label}
+                          <span className="text-gray-500 text-xs">(${getItemPrice(item.id).toFixed(3)})</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            </div>
+                </Card>
+              </div>
 
-            <div className="space-y-4">
-              <Card>
-                <h3 className="text-white font-medium mb-4">任务汇总</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>平台</span>
-                    <span className="text-white">{selectedPlatform}</span>
+              <div className="space-y-4">
+                <Card>
+                  <h3 className="text-white font-medium mb-4">任务汇总</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-gray-400 text-sm">
+                      <span>平台</span>
+                      <span className="text-white">{selectedPlatform}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-sm">
+                      <span>号码数量</span>
+                      <span className="text-white">{numberCount}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-sm">
+                      <span>检测项</span>
+                      <span className="text-white text-xs">{activeItems.map(i => i.label).join(', ')}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-sm">
+                      <span>单价</span>
+                      <span className="text-white">${basePrice.toFixed(3)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-400 text-sm border-t border-gray-800 pt-3">
+                      <span className="font-medium">总费用</span>
+                      <span className="text-blue-400 font-bold text-lg">${totalCost.toFixed(2)}</span>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={handleCreateTask}
+                      disabled={creating || numberCount === 0}
+                    >
+                      {creating ? <Loader size={16} className="animate-spin mr-2" /> : <Play size={16} className="mr-2" />}
+                      {creating ? '创建中...' : '创建任务'}
+                    </Button>
                   </div>
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>号码数量</span>
-                    <span className="text-white">{numberCount}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>检测项</span>
-                    <span className="text-white text-xs">{activeItems.map(i => i.label).join(', ')}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>单价</span>
-                    <span className="text-white">${basePrice.toFixed(3)}</span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 text-sm border-t border-gray-800 pt-3">
-                    <span className="font-medium">总费用</span>
-                    <span className="text-blue-400 font-bold text-lg">${totalCost.toFixed(2)}</span>
-                  </div>
-                  <Button
-                    className="w-full"
-                    onClick={handleCreateTask}
-                    disabled={creating || numberCount === 0}
-                  >
-                    {creating ? <Loader size={16} className="animate-spin mr-2" /> : <Play size={16} className="mr-2" />}
-                    {creating ? '创建中...' : '创建任务'}
-                  </Button>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {activeTab === 'history' && (
@@ -348,7 +352,7 @@ export const Tasks = () => {
                   value={searchTask}
                   onChange={(e: any) => setSearchTask(e.target.value)}
                   className="bg-[#1a1f35] border-gray-700 text-white"
-                  prefix={<Search size={16} className="text-gray-400" />}
+                  prefix={<Search size={16} className="text-gray-400} />}
                 />
               </div>
               <select
