@@ -227,7 +227,7 @@ export const Announcements = () => {
                   </div>
                   <p className="text-gray-400 text-sm mt-2">{ann.content}</p>
                   <div className="flex items-center gap-4 mt-2 text-gray-500 text-xs">
-                    <span><Calendar size={12} className="inline mr-1"} />{new Date(ann.created_at).toLocaleString()}</span>
+                    <span><Calendar size={12} className="inline mr-1" /> {new Date(ann.created_at).toLocaleString()}</span>
                     {ann.expires_at && (
                       <span>过期: {new Date(ann.expires_at).toLocaleDateString()}</span>
                     )}
