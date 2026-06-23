@@ -1,0 +1,431 @@
+import { useState, useEffect } from 'react'
+import { Card } from '@/components/Common/Card'
+import { Badge } from '@/components/Common/Badge'
+import { Button } from '@/components/Common/Button'
+import { Input } from '@/components/Forms/Input'
+import { supabase } from '@/lib/supabase'
+import { useAuthStore } from '@/store/authStore'
+import {
+  CreditCard, Copy, RefreshCw, CheckCircle, XCircle,
+  Clock, AlertCircle, Search, Filter, Trash2,
+  Wallet, DollarSign, ArrowUpRight, ArrowDownRight
+} from 'lucide-react'
+import toast from 'react-hot-toast'
+
+interface RechargeOrder {
+  id: string
+  user_id: string
+  amount: number
+  usdt_amount: number
+  rate: number
+  points: number
+  bonus_points: number
+  address: string
+  status: 'pending' | 'paid' | 'completed' | 'cancelled' | 'expired'
+  created_at: string
+  expires_at: string
+  remark: string
+}
+
+export const Recharge = () => {
+  const { user } = useAuthStore()
+  const [orders, setOrders] = useState<RechargeOrder[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [usdtAmount, setUsdtAmount] = useState('')
+  const [remark, setRemark] = useState('')
+  const [rate, setRate] = useState(6.75)
+  const [countdown, setCountdown] = useState(0)
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
+
+  const loadOrders = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('recharge_orders')
+      .select('*')
+      .eq('user_id', user?.id)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      toast.error('加载订单失败: ' + error.message)
+    } else {
+      setOrders(data || [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    loadOrders()
+    fetchRate()
+  }, [user])
+
+  const fetchRate = async () => {
+    const { data } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'usdt_rate')
+      .single()
+    if (data) {
+      setRate(parseFloat(data.value) || 6.75)
+    }
+  }
+
+  const generateAddress = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    let address = 'TA1k'
+    for (let i = 0; i < 30; i++) {
+      address += chars[Math.floor(Math.random() * chars.length)]
+    }
+    return address
+  }
+
+  const handleCreateOrder = async () => {
+    const amount = parseFloat(usdtAmount)
+    if (!amount || amount <= 0) {
+      toast.error('请输入有效金额')
+      return
+    }
+    if (amount > 10000) {
+      toast.error('单笔最大 10000 USDT')
+      return
+    }
+
+    const points = amount * rate
+    const address = generateAddress()
+
+    const { data, error } = await supabase
+      .from('recharge_orders')
+      .insert({
+        user_id: user?.id,
+        amount: amount,
+        usdt_amount: amount,
+        rate: rate,
+        points: points,
+        bonus_points: 0,
+        address: address,
+        status: 'pending',
+        remark: remark,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+      })
+      .select()
+
+    if (error) {
+      toast.error('创建订单失败: ' + error.message)
+    } else if (data) {
+      toast.success('充值订单已创建')
+      setShowCreate(false)
+      setUsdtAmount('')
+      setRemark('')
+      setCurrentOrderId(data[0].id)
+      setCountdown(1800)
+      loadOrders()
+    }
+  }
+
+  const handleCancelOrder = async (id: string) => {
+    if (!confirm('确定要取消此订单吗？')) return
+
+    const { error } = await supabase
+      .from('recharge_orders')
+      .update({ status: 'cancelled' })
+      .eq('id', id)
+
+    if (error) {
+      toast.error('取消失败: ' + error.message)
+    } else {
+      toast.success('订单已取消')
+      loadOrders()
+    }
+  }
+
+  const handleConfirm = async (id: string) => {
+    const { error } = await supabase
+      .from('recharge_orders')
+      .update({ status: 'completed' })
+      .eq('id', id)
+
+    if (error) {
+      toast.error('确认失败: ' + error.message)
+    } else {
+      toast.success('已确认到账')
+      loadOrders()
+    }
+  }
+
+  const copyAddress = (address: string) => {
+    navigator.clipboard.writeText(address)
+    toast.success('地址已复制')
+  }
+
+  useEffect(() => {
+    if (countdown > 0 && currentOrderId) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    } else if (countdown === 0 && currentOrderId) {
+      supabase
+        .from('recharge_orders')
+        .update({ status: 'expired' })
+        .eq('id', currentOrderId)
+        .then(() => {
+          toast.warning('订单已超时取消')
+          loadOrders()
+          setCurrentOrderId(null)
+        })
+    }
+  }, [countdown, currentOrderId])
+
+  const statusColors: Record<string, string> = {
+    pending: 'warning',
+    paid: 'info',
+    completed: 'success',
+    cancelled: 'default',
+    expired: 'danger'
+  }
+
+  const statusLabels: Record<string, string> = {
+    pending: '待支付',
+    paid: '已支付',
+    completed: '已完成',
+    cancelled: '已取消',
+    expired: '已过期'
+  }
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600)
+    const m = Math.floor((seconds % 3600) / 60)
+    const s = seconds % 60
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">自助充值</h1>
+            <p className="text-gray-400 text-sm">USDT-TRC20 充值</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadOrders}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+            <Button variant="primary" onClick={() => setShowCreate(true)}>
+              <CreditCard size={16} className="mr-2" /> 充值
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">总充值</div>
+            <div className="text-white text-xl font-bold">
+              ${orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + o.amount, 0).toFixed(2)}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">待支付</div>
+            <div className="text-yellow-400 text-xl font-bold">
+              {orders.filter(o => o.status === 'pending').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">已完成</div>
+            <div className="text-green-400 text-xl font-bold">
+              {orders.filter(o => o.status === 'completed').length}
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="text-gray-400 text-sm">汇率</div>
+            <div className="text-blue-400 text-xl font-bold">1 USDT = {rate} 积分</div>
+          </div>
+        </div>
+
+        <Card>
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+            <h3 className="text-white font-semibold">充值记录</h3>
+            <span className="text-gray-400 text-sm">{orders.length} 条</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-[#1a1f35]">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">订单号</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">USDT</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">积分</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">地址</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => (
+                  <tr key={order.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
+                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">{order.id.slice(0, 8)}</td>
+                    <td className="px-4 py-3 text-white font-medium">{order.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-white">{order.points.toFixed(2)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-400 text-xs font-mono">
+                          {order.address.slice(0, 10)}...{order.address.slice(-8)}
+                        </span>
+                        <button onClick={() => copyAddress(order.address)} className="text-gray-500 hover:text-white">
+                          <Copy size={14} />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusColors[order.status] || 'default'}>
+                        {statusLabels[order.status] || order.status}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-gray-400 text-sm">
+                      {new Date(order.created_at).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        {order.status === 'pending' && (
+                          <button
+                            onClick={() => handleCancelOrder(order.id)}
+                            className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                            title="取消"
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        )}
+                        {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && order.status === 'pending' && (
+                          <button
+                            onClick={() => handleConfirm(order.id)}
+                            className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
+                            title="确认到账"
+                          >
+                            <CheckCircle size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {orders.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-8 text-gray-400">暂无充值记录</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        {showCreate && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-white">自助充值</h2>
+                <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
+                  <XCircle size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-[#1a1f35] rounded-lg p-4 text-center">
+                  <p className="text-gray-400 text-sm">当前汇率</p>
+                  <p className="text-2xl font-bold text-blue-400">1 USDT = {rate} 积分</p>
+                </div>
+
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">USDT 数量</label>
+                  <Input
+                    type="number"
+                    value={usdtAmount}
+                    onChange={(e: any) => setUsdtAmount(e.target.value)}
+                    placeholder="请输入 USDT 数量"
+                    className="bg-[#1a1f35] border-gray-700 text-white text-lg"
+                  />
+                  <p className="text-gray-500 text-xs mt-1">最小 1 USDT，最大 10000 USDT</p>
+                </div>
+
+                <div>
+                  <label className="text-white text-sm font-medium block mb-1">备注 (可选)</label>
+                  <Input
+                    value={remark}
+                    onChange={(e: any) => setRemark(e.target.value)}
+                    placeholder="充值备注"
+                    className="bg-[#1a1f35] border-gray-700 text-white"
+                  />
+                </div>
+
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="text-yellow-400 mt-0.5" size={16} />
+                    <p className="text-yellow-400 text-xs">
+                      充值时请务必带上小数点后的数值，否则验证会不通过！
+                      充值后大概要1分钟才能开始验证，整个过程需要2-3分钟。
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="outline" className="flex-1" onClick={() => setShowCreate(false)}>
+                    取消
+                  </Button>
+                  <Button className="flex-1" onClick={handleCreateOrder}>
+                    提交充值
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentOrderId && countdown > 0 && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-8 w-full max-w-md text-center">
+              <div className="mb-4">
+                <div className="w-20 h-20 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto">
+                  <Clock className="text-blue-400" size={40} />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white">支付倒计时</h2>
+              <div className="text-5xl font-bold text-blue-400 my-6 font-mono">
+                {formatTime(countdown)}
+              </div>
+              <div className="bg-[#1a1f35] rounded-lg p-4">
+                <p className="text-gray-400 text-sm">付款地址</p>
+                <p className="text-white font-mono text-sm break-all">
+                  {orders.find(o => o.id === currentOrderId)?.address || '生成中...'}
+                </p>
+                <button
+                  onClick={() => {
+                    const order = orders.find(o => o.id === currentOrderId)
+                    if (order) copyAddress(order.address)
+                  }}
+                  className="mt-2 text-blue-400 text-sm hover:underline"
+                >
+                  复制地址
+                </button>
+              </div>
+              <div className="mt-4 flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setCurrentOrderId(null)}>
+                  关闭
+                </Button>
+                <Button variant="primary" className="flex-1" onClick={() => {
+                  toast.success('验证中，请稍候...')
+                }}>
+                  检验并关闭
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
