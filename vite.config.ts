@@ -9,13 +9,12 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      onwarn(warning, warn) {
-        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
-        warn(warning)
-      },
+      external: [],
     },
+    sourcemap: false,
   },
   esbuild: {
+    // 忽略 TypeScript 错误
     logOverride: { 'ts-1085': 'silent' },
   },
 })
