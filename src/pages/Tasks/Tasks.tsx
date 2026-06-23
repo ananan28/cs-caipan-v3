@@ -49,8 +49,11 @@ export const Tasks = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const getItemPrice = (id: string) => {
-    const item = detectionItems.find(i => i.id === id)
-    return item ? item.price : detectionItemsConfig.find(i => i.id === id)?.price || 0
+    const items = detectionItems || []
+    const item = items.find((i: any) => i.id === id)
+    if (item) return item.price || 0
+    const configItem = detectionItemsConfig.find(i => i.id === id)
+    return configItem?.price || 0
   }
 
   const [selectedItems, setSelectedItems] = useState<string[]>(
@@ -99,477 +102,285 @@ export const Tasks = () => {
       toast.error('请至少输入一个号码或上传文件')
       return
     }
-    if (selectedItems.length === 0) {
-      toast.error('请至少选择一个检测项')
-      return
-    }
-
-    setTaskStatus('processing')
-    toast.loading('任务创建中...')
-
-    setTimeout(() => {
-      const newTask = {
-        id: `TASK-${String(Date.now()).slice(-6)}`,
-        platform: selectedPlatform,
-        numbers: numberList.length,
-        status: 'completed',
-        time: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        result: `已检测 ${numberList.length} 个，有效 ${Math.floor(numberList.length * 0.7)} 个`,
-        progress: 100,
-        cost: totalCost,
-        items: activeItems.map(i => i.label).join(', '),
-      }
-      setTasks([newTask, ...tasks])
-      setTaskStatus('done')
-      setNumbers('')
-      setUploadedFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ''
-      toast.dismiss()
-      toast.success(`✅ 任务 ${newTask.id} 创建成功！`)
-      setActiveTab('list')
-    }, 1500)
+    toast.success(`✅ 任务创建成功！共 ${numberList.length} 个号码，费用 $${totalCost.toFixed(2)}`)
   }
 
-  const handleDownload = (task: any) => {
-    setSelectedTask(task)
-    setShowDownloadOptions(true)
-  }
-
-  const executeDownload = () => {
-    if (!selectedTask) return
-    const numbers = Array.from({ length: Math.min(selectedTask.numbers, 100) }, (_, i) => {
-      const base = '86131000000000'
-      const suffix = String(i).padStart(4, '0')
-      let num = base.slice(0, -4) + suffix
-      if (includeCountryCode && countryCode && !num.startsWith(countryCode)) num = countryCode + num
-      if (!includeCountryCode && num.startsWith(countryCode)) num = num.slice(countryCode.length)
-      if (includePlus) num = '+' + num
-      return num
-    })
-    
-    const content = numbers.join('\n')
-    const filename = `${selectedTask.id}_${selectedTask.platform}`
-    let blob: Blob, extension: string
-
-    switch (downloadFormat) {
-      case 'csv': extension = 'csv'; blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8' }); break
-      case 'json': extension = 'json'; blob = new Blob([JSON.stringify(numbers, null, 2)], { type: 'application/json' }); break
-      case 'xlsx': extension = 'xls'; blob = new Blob([`<html><head><meta charset="UTF-8"><style>td{mso-number-format:"@"}</style></head><body><table>${numbers.map(n => `<tr><td>${n}</td></tr>`).join('')}</table></body></html>`], { type: 'application/vnd.ms-excel' }); break
-      default: extension = 'txt'; blob = new Blob(['\uFEFF' + content], { type: 'text/plain;charset=utf-8' })
-    }
-
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${filename}.${extension}`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success(`📥 ${selectedTask.id} 已下载`)
+  const handleExport = () => {
+    toast.success('✅ 导出成功')
     setShowDownloadOptions(false)
-    setSelectedTask(null)
-  }
-
-  const handleDelete = (id: string) => {
-    if (confirm('确定要删除此任务吗？')) {
-      setTasks(tasks.filter(t => t.id !== id))
-      toast.success('✅ 任务已删除')
-    }
-  }
-
-  const handleViewDetail = (task: any) => {
-    setSelectedTask(task)
-    setShowTaskDetail(true)
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-    setUploadedFile(file)
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const text = event.target?.result as string
-      if (text) {
-        const lines = text.split('\n').filter(line => line.trim())
-        setNumbers(lines.join('\n'))
-        toast.success(`已读取 ${lines.length} 个号码`)
+    if (file) {
+      setUploadedFile(file)
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const content = event.target?.result as string
+        setNumbers(content)
+        toast.success(`✅ 已加载文件: ${file.name}`)
       }
+      reader.readAsText(file)
     }
-    reader.readAsText(file)
   }
 
-  const handleImportTemplate = () => {
-    const template = '86131000000000\n86131000000001\n86131000000002\n86131000000003\n86131000000004'
-    setNumbers(template)
-    toast.success('✅ 已导入 5 个模板号码')
+  const handleClearNumbers = () => {
+    setNumbers('')
+    setUploadedFile(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleBatchDetect = () => {
-    const numberList = numbers.split('\n').filter(n => n.trim())
-    if (numberList.length === 0) {
-      toast.error('请先输入号码或上传文件')
-      return
-    }
-    toast.loading('正在执行批量检测...')
-    setTimeout(() => {
-      toast.dismiss()
-      toast.success(`✅ 批量检测完成！共检测 ${numberList.length} 个号码，有效 ${Math.floor(numberList.length * 0.7)} 个`)
-    }, 2000)
-  }
-
-  const filteredTasks = tasks
-    .filter(t => t.id.includes(searchTask) || t.platform.includes(searchTask))
-    .filter(t => filterStatus ? t.status === filterStatus : true)
-    .filter(t => filterPlatform ? t.platform === filterPlatform : true)
-
-  const taskStats = {
-    total: tasks.length,
-    completed: tasks.filter(t => t.status === 'completed').length,
-    processing: tasks.filter(t => t.status === 'processing').length,
-    pending: tasks.filter(t => t.status === 'pending').length,
-    failed: tasks.filter(t => t.status === 'failed').length,
-    totalCost: tasks.reduce((sum, t) => sum + (t.cost || 0), 0),
-  }
+  const filteredTasks = tasks.filter(task => {
+    if (searchTask && !task.id.includes(searchTask)) return false
+    if (filterStatus && task.status !== filterStatus) return false
+    if (filterPlatform && task.platform !== filterPlatform) return false
+    return true
+  })
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">任务中心</h1>
-          <p className="text-muted text-sm">创建和管理检测任务</p>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <CheckSquare className="text-blue-400" />
+              任务中心
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">创建和管理检测任务</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              <RefreshCw size={14} className="mr-1" /> 刷新
+            </Button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={handleRefresh}><RefreshCw size={18} className="mr-1" />刷新</Button>
-          <Button variant="primary" onClick={() => setActiveTab('platforms')}><Zap size={18} className="mr-2" />新建任务</Button>
+
+        <div className="flex gap-2 mb-6 border-b border-gray-800">
+          <button
+            onClick={() => setActiveTab('platforms')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'platforms' 
+                ? 'text-blue-400 border-b-2 border-blue-400' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            平台选择
+          </button>
+          <button
+            onClick={() => setActiveTab('create')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'create' 
+                ? 'text-blue-400 border-b-2 border-blue-400' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            创建任务
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'history' 
+                ? 'text-blue-400 border-b-2 border-blue-400' 
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            任务历史
+          </button>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="text-center"><p className="text-xs text-muted">总任务</p><p className="text-2xl font-bold text-white">{taskStats.total}</p></Card>
-        <Card className="text-center"><p className="text-xs text-muted">已完成</p><p className="text-2xl font-bold text-green">{taskStats.completed}</p></Card>
-        <Card className="text-center"><p className="text-xs text-muted">处理中</p><p className="text-2xl font-bold text-blue">{taskStats.processing}</p></Card>
-        <Card className="text-center"><p className="text-xs text-muted">待处理</p><p className="text-2xl font-bold text-orange">{taskStats.pending}</p></Card>
-        <Card className="text-center"><p className="text-xs text-muted">消耗积分</p><p className="text-2xl font-bold text-purple">{taskStats.totalCost.toFixed(0)}</p></Card>
-      </div>
-
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setActiveTab('platforms')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'platforms' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>🎯 选择平台</button>
-        <button onClick={() => setActiveTab('create')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'create' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>📝 创建任务</button>
-        <button onClick={() => setActiveTab('list')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'list' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>📋 任务列表</button>
-        <button onClick={() => setActiveTab('stats')} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === 'stats' ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>📊 任务统计</button>
-      </div>
-
-      {activeTab === 'platforms' && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {platformCards.map(p => (
-            <button
-              key={p.id}
-              onClick={() => { setSelectedPlatform(p.id); setActiveTab('create') }}
-              className={`p-4 rounded-xl border transition-all text-left ${selectedPlatform === p.id ? 'border-sky/50 bg-blue/10' : 'border-border bg-panel/50 hover:border-sky/20'}`}
-            >
-              <div className={`text-3xl mb-2 bg-gradient-to-r ${p.color} bg-clip-text text-transparent`}>{p.icon}</div>
-              <div className="font-bold text-white flex items-center gap-2">
-                {p.label}
-                {p.popular && <Star size={12} className="text-yellow-400 fill-yellow-400" />}
-              </div>
-              <p className="text-xs text-muted mt-1">{p.desc}</p>
-              <Badge variant="blue" className="mt-2 text-xs">基础 ¥0.02/条</Badge>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'create' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card className="lg:col-span-2">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-blue/10 border border-blue/30">
-                <div className="text-2xl">{platformCards.find(p => p.id === selectedPlatform)?.icon}</div>
-                <div>
-                  <div className="font-bold text-white">{selectedPlatform}</div>
-                  <div className="text-xs text-muted">基础单价 ¥0.02/条</div>
+        {activeTab === 'platforms' && (
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {platformCards.map((platform) => (
+              <Card
+                key={platform.id}
+                className={`cursor-pointer transition-all hover:scale-105 ${
+                  selectedPlatform === platform.id ? 'ring-2 ring-blue-400' : ''
+                }`}
+                onClick={() => setSelectedPlatform(platform.id)}
+              >
+                <div className={`text-3xl mb-2 bg-gradient-to-r ${platform.color} bg-clip-text text-transparent`}>
+                  {platform.icon}
                 </div>
-                <div className="flex-1" />
-                <Badge variant="blue">已选</Badge>
-              </div>
+                <h3 className="text-white font-semibold">{platform.label}</h3>
+                <p className="text-gray-400 text-sm">{platform.desc}</p>
+                {platform.popular && (
+                  <Badge variant="success" className="mt-2">热门</Badge>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
 
-              <div>
-                <label className="text-sm font-bold text-muted block mb-2">🔍 选择检测项</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {detectionItemsConfig.map(item => {
-                    const price = getItemPrice(item.id)
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => toggleDetectionItem(item.id)}
-                        className={`flex items-center gap-2 p-3 rounded-xl border transition-all text-left ${
-                          selectedItems.includes(item.id) 
-                            ? 'border-sky/50 bg-blue/10' 
-                            : 'border-border bg-panel/50 hover:border-sky/20'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 ${
-                          selectedItems.includes(item.id) 
-                            ? 'bg-blue border-blue text-white' 
-                            : 'border-border'
-                        }`}>
-                          {selectedItems.includes(item.id) && <CheckCircle size={12} />}
-                        </div>
-                        <div>
-                          <div className="text-sm text-white">{item.label}</div>
-                          <div className="text-xs text-muted">¥{price.toFixed(3)}/条</div>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-muted block mb-2">号码列表</label>
-                <textarea
-                  className="w-full min-h-[120px] bg-panel/50 border border-border rounded-xl text-white outline-none p-4 focus:border-sky/50 resize-y font-mono text-sm"
-                  placeholder="每行一个号码"
-                  value={numbers}
-                  onChange={(e) => setNumbers(e.target.value)}
-                />
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-3">
-                    <input ref={fileInputRef} type="file" accept=".txt,.csv" onChange={handleFileUpload} className="hidden" id="fileUpload" />
-                    <label htmlFor="fileUpload" className="px-4 py-2 rounded-xl bg-panel/50 border border-border text-sm text-muted hover:text-white hover:border-sky/30 cursor-pointer transition-all flex items-center gap-2">
-                      <Upload size={16} /> 上传文件
+        {activeTab === 'create' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <Card>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-white text-sm font-medium block mb-2">
+                      输入号码 <span className="text-gray-400">(每行一个)</span>
                     </label>
-                    {uploadedFile && <span className="text-xs text-green">{uploadedFile.name}</span>}
-                  </div>
-                  <span className="text-xs text-muted">已输入：{numberCount} 个号码</span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-panel/50 border border-border space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted">检测项 ({activeItems.length}项)</span>
-                  <span className="text-white">{activeItems.map(i => i.label).join(', ')}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted">单价</span>
-                  <span className="text-white">¥{basePrice.toFixed(3)}/条</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted">号码数量</span>
-                  <span className="text-white">{numberCount} 个</span>
-                </div>
-                <div className="flex items-center justify-between text-lg font-bold border-t border-border pt-2">
-                  <span className="text-muted">预估费用</span>
-                  <span className="text-sky">¥{totalCost.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <Button variant="primary" className="w-full" onClick={handleCreateTask} disabled={taskStatus === 'processing' || selectedItems.length === 0}>
-                {taskStatus === 'processing' ? <><Loader size={18} className="mr-2 animate-spin" />创建中...</> : <><Play size={18} className="mr-2" />创建任务</>}
-              </Button>
-              {selectedItems.length === 0 && (
-                <p className="text-xs text-orange text-center">⚠️ 请至少选择一个检测项</p>
-              )}
-            </div>
-          </Card>
-
-          <div className="space-y-4">
-            <Card title="📋 已选检测项">
-              <div className="space-y-2">
-                {activeItems.length === 0 ? (
-                  <p className="text-sm text-muted">请选择检测项</p>
-                ) : (
-                  activeItems.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-panel/50">
-                      <span className="text-sm text-white">{item.label}</span>
-                      <span className="text-xs text-muted">¥{getItemPrice(item.id).toFixed(3)}</span>
+                    <textarea
+                      value={numbers}
+                      onChange={(e) => setNumbers(e.target.value)}
+                      className="w-full h-40 bg-[#1a1f35] border border-gray-700 rounded-lg text-white p-3 focus:outline-none focus:border-blue-500"
+                      placeholder="+8613800138000&#10;+8613800138001&#10;+8613800138002"
+                    />
+                    <div className="flex items-center gap-3 mt-2">
+                      <Button size="sm" onClick={() => fileInputRef.current?.click()}>
+                        <Upload size={14} className="mr-1" /> 上传文件
+                      </Button>
+                      <input ref={fileInputRef} type="file" accept=".txt,.csv" className="hidden" onChange={handleFileUpload} />
+                      {uploadedFile && (
+                        <span className="text-gray-400 text-sm">{uploadedFile.name}</span>
+                      )}
+                      {numbers && (
+                        <Button variant="ghost" size="sm" onClick={handleClearNumbers}>
+                          <X size={14} className="mr-1" /> 清空
+                        </Button>
+                      )}
+                      <span className="text-gray-400 text-sm ml-auto">共 {numberCount} 个号码</span>
                     </div>
-                  ))
-                )}
-                {activeItems.length > 0 && (
-                  <div className="flex items-center justify-between p-2 rounded-lg bg-blue/10 border border-blue/30 mt-2">
-                    <span className="text-sm text-white font-bold">合计</span>
-                    <span className="text-sm text-sky font-bold">¥{basePrice.toFixed(3)}/条</span>
                   </div>
-                )}
-              </div>
-            </Card>
-
-            <Card title="⚡ 快速操作">
-              <div className="space-y-2">
-                <Button variant="ghost" className="w-full justify-start text-sm" onClick={handleImportTemplate}>
-                  <FileText size={14} className="mr-2" />导入号码模板
-                </Button>
-                <Button variant="ghost" className="w-full justify-start text-sm" onClick={handleBatchDetect}>
-                  <Database size={14} className="mr-2" />批量检测
-                </Button>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'list' && (
-        <Card>
-          <div className="flex flex-wrap gap-4 mb-4">
-            <div className="flex-1 min-w-[200px]"><Input placeholder="搜索任务..." value={searchTask} onChange={(e) => setSearchTask(e.target.value)} /></div>
-            <select className="w-auto min-w-[120px] bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-              <option value="">全部状态</option><option value="completed">已完成</option><option value="processing">处理中</option><option value="pending">待处理</option><option value="failed">失败</option>
-            </select>
-            <select className="w-auto min-w-[120px] bg-panel/50 border border-border rounded-xl text-white px-4 py-2.5 outline-none" value={filterPlatform} onChange={(e) => setFilterPlatform(e.target.value)}>
-              <option value="">全部平台</option>{platformCards.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <Button variant="ghost" onClick={() => { setSearchTask(''); setFilterStatus(''); setFilterPlatform('') }}>重置</Button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead><tr className="border-b border-border">
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">任务ID</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">平台</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">数量</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">检测项</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">进度</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">状态</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">消耗</th>
-                <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">操作</th>
-              </tr></thead>
-              <tbody>
-                {filteredTasks.map(task => (
-                  <tr key={task.id} className="border-b border-border/50 hover:bg-panel/50">
-                    <td className="py-3 px-4 text-white font-mono text-sm">{task.id}</td>
-                    <td className="py-3 px-4"><Badge variant="blue">{task.platform}</Badge></td>
-                    <td className="py-3 px-4 text-white">{task.numbers}</td>
-                    <td className="py-3 px-4 text-xs text-muted">{task.items || '全部'}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-2 bg-panel/50 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue rounded-full transition-all" style={{ width: `${task.progress || 0}%` }} />
-                        </div>
-                        <span className="text-xs text-muted">{task.progress || 0}%</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={statusColors[task.status]}>
-                        <span className="flex items-center gap-1">{statusIcons[task.status]} {task.status}</span>
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm text-muted">¥{(task.cost || 0).toFixed(2)}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-1">
-                        <button onClick={() => handleViewDetail(task)} className="p-1.5 rounded-lg hover:bg-blue/10 text-blue"><Eye size={16} /></button>
-                        <button onClick={() => handleDownload(task)} className="p-1.5 rounded-lg hover:bg-green/10 text-green"><Download size={16} /></button>
-                        <button onClick={() => handleDelete(task.id)} className="p-1.5 rounded-lg hover:bg-red/10 text-red"><Trash2 size={16} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      )}
-
-      {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card title="平台任务分布">
-            <div className="space-y-3">
-              {platformCards.map(p => {
-                const count = tasks.filter(t => t.platform === p.id).length
-                return (
-                  <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-panel/50">
-                    <span className="text-sm text-white">{p.icon} {p.label}</span>
-                    <span className="text-blue font-bold">{count} 个</span>
-                  </div>
-                )
-              })}
-            </div>
-          </Card>
-          <Card title="任务状态统计">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50">
-                <span className="text-sm text-white">✅ 已完成</span>
-                <span className="text-green font-bold">{taskStats.completed}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50">
-                <span className="text-sm text-white">🔄 处理中</span>
-                <span className="text-blue font-bold">{taskStats.processing}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50">
-                <span className="text-sm text-white">⏳ 待处理</span>
-                <span className="text-orange font-bold">{taskStats.pending}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50">
-                <span className="text-sm text-white">❌ 失败</span>
-                <span className="text-red font-bold">{taskStats.failed}</span>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50 border-t border-border pt-3">
-                <span className="text-sm text-white font-bold">💰 总消耗</span>
-                <span className="text-purple font-bold">¥{taskStats.totalCost.toFixed(2)}</span>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {showDownloadOptions && selectedTask && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-panel border border-border rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">📥 下载选项</h2>
-              <button onClick={() => { setShowDownloadOptions(false); setSelectedTask(null) }} className="text-muted hover:text-white"><X size={20} /></button>
-            </div>
-            <div className="space-y-4">
-              <div className="p-3 rounded-xl bg-panel/50 border border-border">
-                <p className="text-sm text-muted">任务</p>
-                <p className="text-white font-bold">{selectedTask.id} - {selectedTask.platform}</p>
-                <p className="text-xs text-muted">共 {selectedTask.numbers} 个号码</p>
-              </div>
-              <div><label className="text-sm font-bold text-muted block mb-2">格式</label>
-                <div className="grid grid-cols-5 gap-2">
-                  {['txt','csv','json','xlsx','zip'].map(f => <button key={f} onClick={() => setDownloadFormat(f)} className={`p-2 rounded-xl text-sm font-bold transition-all ${downloadFormat === f ? 'bg-blue text-white' : 'bg-panel/50 text-muted hover:text-white'}`}>{f.toUpperCase()}</button>)}
                 </div>
-              </div>
-              <div className="space-y-2 p-3 rounded-xl bg-panel/50 border border-border">
-                <label className="flex items-center justify-between text-sm text-white cursor-pointer"><span>带 + 号</span><input type="checkbox" checked={includePlus} onChange={(e) => setIncludePlus(e.target.checked)} className="w-4 h-4 accent-blue" /></label>
-                <label className="flex items-center justify-between text-sm text-white cursor-pointer"><span>带国家区号</span><input type="checkbox" checked={includeCountryCode} onChange={(e) => setIncludeCountryCode(e.target.checked)} className="w-4 h-4 accent-blue" /></label>
-                {includeCountryCode && <Input label="区号" type="text" value={countryCode} onChange={(e) => setCountryCode(e.target.value.replace(/[^0-9]/g, ''))} />}
-              </div>
-              <div className="p-3 rounded-xl bg-panel/50 border border-border">
-                <p className="text-xs text-muted">预览</p>
-                <p className="text-sm text-white font-mono">{includePlus ? '+' : ''}{includeCountryCode ? countryCode : ''}86131000000000</p>
-              </div>
-              <Button variant="primary" className="w-full" onClick={executeDownload}><Download size={18} className="mr-2" />下载 {selectedTask.numbers} 个号码</Button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Card>
 
-      {showTaskDetail && selectedTask && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-panel border border-border rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">📋 任务详情</h2>
-              <button onClick={() => { setShowTaskDetail(false); setSelectedTask(null) }} className="text-muted hover:text-white"><X size={20} /></button>
+              <Card>
+                <div className="space-y-3">
+                  <h3 className="text-white font-medium">检测项配置</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {detectionItemsConfig.map((item) => (
+                      <label key={item.id} className="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(item.id)}
+                          onChange={() => toggleDetectionItem(item.id)}
+                          className="rounded border-gray-600 bg-[#1a1f35] text-blue-400 focus:ring-blue-400"
+                        />
+                        {item.label}
+                        <span className="text-gray-500 text-xs">(${getItemPrice(item.id).toFixed(3)})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </Card>
             </div>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">任务ID</span><span className="text-white font-mono">{selectedTask.id}</span></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">平台</span><Badge variant="blue">{selectedTask.platform}</Badge></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">检测项</span><span className="text-white text-sm">{selectedTask.items || '全部'}</span></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">号码数量</span><span className="text-white">{selectedTask.numbers}</span></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">状态</span><Badge variant={statusColors[selectedTask.status]}>{selectedTask.status}</Badge></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">进度</span><div className="flex items-center gap-2"><div className="w-32 h-2 bg-panel/50 rounded-full overflow-hidden"><div className="h-full bg-blue rounded-full transition-all" style={{ width: `${selectedTask.progress || 0}%` }} /></div><span className="text-xs text-muted">{selectedTask.progress || 0}%</span></div></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">消耗积分</span><span className="text-purple font-bold">¥{(selectedTask.cost || 0).toFixed(2)}</span></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">结果</span><span className="text-white text-sm">{selectedTask.result}</span></div>
-              <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">时间</span><span className="text-sm text-muted">{selectedTask.time}</span></div>
-            </div>
-            <div className="flex gap-3 mt-4">
-              <Button variant="primary" className="flex-1" onClick={() => { setShowTaskDetail(false); setSelectedTask(null) }}>关闭</Button>
-              <Button variant="green" className="flex-1" onClick={() => { handleDownload(selectedTask); setShowTaskDetail(false) }}><Download size={16} className="mr-1" />导出</Button>
+
+            <div className="space-y-4">
+              <Card>
+                <h3 className="text-white font-medium mb-4">任务汇总</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-gray-400 text-sm">
+                    <span>平台</span>
+                    <span className="text-white">{selectedPlatform}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 text-sm">
+                    <span>号码数量</span>
+                    <span className="text-white">{numberCount}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 text-sm">
+                    <span>检测项</span>
+                    <span className="text-white">{activeItems.map(i => i.label).join(', ')}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 text-sm">
+                    <span>单价</span>
+                    <span className="text-white">${basePrice.toFixed(3)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400 text-sm border-t border-gray-800 pt-3">
+                    <span className="font-medium">总费用</span>
+                    <span className="text-blue-400 font-bold text-lg">${totalCost.toFixed(2)}</span>
+                  </div>
+                  <Button className="w-full" onClick={handleCreateTask}>
+                    <Play size={16} className="mr-2" /> 创建任务
+                  </Button>
+                </div>
+              </Card>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'history' && (
+          <Card>
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <Input
+                  placeholder="搜索任务ID..."
+                  value={searchTask}
+                  onChange={(e) => setSearchTask(e.target.value)}
+                  className="bg-[#1a1f35] border-gray-700 text-white"
+                  prefix={<Search size={16} className="text-gray-400" />}
+                />
+              </div>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="">全部状态</option>
+                <option value="completed">已完成</option>
+                <option value="processing">处理中</option>
+                <option value="pending">待处理</option>
+                <option value="failed">失败</option>
+              </select>
+              <select
+                value={filterPlatform}
+                onChange={(e) => setFilterPlatform(e.target.value)}
+                className="px-3 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              >
+                <option value="">全部平台</option>
+                {platformCards.map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[#1a1f35]">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">任务ID</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">平台</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">号码数</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">费用</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTasks.map((task) => (
+                    <tr key={task.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
+                      <td className="px-4 py-3 text-white text-sm font-mono">{task.id}</td>
+                      <td className="px-4 py-3 text-white text-sm">{task.platform}</td>
+                      <td className="px-4 py-3 text-white text-sm">{task.numbers}</td>
+                      <td className="px-4 py-3 text-white text-sm">${task.cost.toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={statusColors[task.status]}>
+                          {statusIcons[task.status]} {task.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-400 text-sm">{task.time}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => { setSelectedTask(task); setShowTaskDetail(true); }}>
+                            <Eye size={14} />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Download size={14} />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <Trash2 size={14} className="text-red-400" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
