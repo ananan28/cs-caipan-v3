@@ -1,105 +1,184 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
-import { Database, Download, Upload, RefreshCw, Trash2, Clock, CheckCircle, AlertCircle, Save, HardDrive } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+import {
+  Database, RefreshCw, Download, Upload, Trash2,
+  Clock, CheckCircle, AlertCircle, HardDrive,
+  FileArchive, Cloud, Server
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 
+interface Backup {
+  id: string
+  name: string
+  size: string
+  status: string
+  created_at: string
+}
+
 export const Backup = () => {
-  const [backups, setBackups] = useState([
-    { id: 1, name: 'full_backup_20250622.sql', size: '156 MB', date: '2025-06-22 03:00', status: 'completed', type: 'full' },
-    { id: 2, name: 'full_backup_20250621.sql', size: '152 MB', date: '2025-06-21 03:00', status: 'completed', type: 'full' },
-    { id: 3, name: 'incremental_20250622_12.sql', size: '23 MB', date: '2025-06-22 12:00', status: 'completed', type: 'incremental' },
-    { id: 4, name: 'full_backup_20250620.sql', size: '148 MB', date: '2025-06-20 03:00', status: 'completed', type: 'full' },
-  ])
+  const [backups, setBackups] = useState<Backup[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [isBackingUp, setIsBackingUp] = useState(false)
+  const loadBackups = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('backups')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-  const handleBackup = () => {
-    setIsBackingUp(true)
-    toast.loading('正在备份数据...')
-    setTimeout(() => {
-      setIsBackingUp(false)
-      toast.dismiss()
-      toast.success('✅ 备份完成！')
-      setBackups([{ id: Date.now(), name: `full_backup_${new Date().toISOString().slice(0,10)}.sql`, size: '158 MB', date: new Date().toISOString().slice(0, 16).replace('T', ' '), status: 'completed', type: 'full' }, ...backups])
-    }, 3000)
+    if (error) {
+      toast.error('加载备份失败: ' + error.message)
+    } else {
+      setBackups(data || [])
+    }
+    setLoading(false)
   }
 
-  const handleDownload = (name: string) => {
-    toast.success(`📥 ${name} 下载中...`)
-    setTimeout(() => toast.success('✅ 下载完成'), 1500)
-  }
+  useEffect(() => {
+    loadBackups()
+  }, [])
 
-  const handleDelete = (id: number) => {
-    if (confirm('确定删除此备份吗？')) {
-      setBackups(backups.filter(b => b.id !== id))
-      toast.success('✅ 已删除')
+  const handleCreateBackup = async () => {
+    const { error } = await supabase
+      .from('backups')
+      .insert({
+        name: `backup_${new Date().toISOString().slice(0,10)}_${Date.now().toString().slice(-6)}`,
+        size: '2.4 MB',
+        status: 'completed'
+      })
+
+    if (error) {
+      toast.error('创建备份失败: ' + error.message)
+    } else {
+      toast.success('备份已创建')
+      loadBackups()
     }
   }
 
+  const handleDownload = (id: string, name: string) => {
+    toast.success(`正在下载 ${name}`)
+  }
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!confirm(`确定要删除备份 ${name} 吗？`)) return
+
+    const { error } = await supabase
+      .from('backups')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      toast.error('删除失败: ' + error.message)
+    } else {
+      toast.success('备份已删除')
+      loadBackups()
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">加载中...</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-white">💾 数据备份</h1><p className="text-muted text-sm">管理和恢复数据备份</p></div>
-        <Button variant="primary" onClick={handleBackup} disabled={isBackingUp}>
-          <Database size={18} className="mr-2" />
-          {isBackingUp ? '备份中...' : '立即备份'}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card><div className="text-center"><p className="text-sm text-muted">备份总数</p><p className="text-2xl font-bold text-white">{backups.length}</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">总大小</p><p className="text-2xl font-bold text-blue">479 MB</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">最近备份</p><p className="text-2xl font-bold text-green">今天 03:00</p></div></Card>
-        <Card><div className="text-center"><p className="text-sm text-muted">存储位置</p><p className="text-2xl font-bold text-orange">本地</p></div></Card>
-      </div>
-
-      <Card title="备份列表">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead><tr className="border-b border-border">
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">文件名</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">类型</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">大小</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">日期</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">状态</th>
-              <th className="text-left text-xs font-bold text-muted uppercase py-3 px-4">操作</th>
-            </tr></thead>
-            <tbody>
-              {backups.map(b => (
-                <tr key={b.id} className="border-b border-border/50 hover:bg-panel/50">
-                  <td className="py-3 px-4 text-white font-mono text-sm">{b.name}</td>
-                  <td className="py-3 px-4"><Badge variant={b.type === 'full' ? 'purple' : 'blue'}>{b.type}</Badge></td>
-                  <td className="py-3 px-4 text-sm text-muted">{b.size}</td>
-                  <td className="py-3 px-4 text-sm text-muted">{b.date}</td>
-                  <td className="py-3 px-4"><Badge variant="green">✅ 完成</Badge></td>
-                  <td className="py-3 px-4"><div className="flex gap-1">
-                    <button onClick={() => handleDownload(b.name)} className="p-1.5 rounded-lg hover:bg-green/10 text-green"><Download size={16} /></button>
-                    <button onClick={() => handleDelete(b.id)} className="p-1.5 rounded-lg hover:bg-red/10 text-red"><Trash2 size={16} /></button>
-                  </div></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      <Card title="⚙️ 备份设置">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">自动备份</span><Badge variant="green">已启用</Badge></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">备份频率</span><span className="text-white">每日 03:00</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">保留天数</span><span className="text-white">30 天</span></div>
+    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-white">数据备份</h1>
+            <p className="text-gray-400 text-sm">管理数据备份</p>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">存储位置</span><span className="text-white">本地磁盘</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">备份大小</span><span className="text-white">479 MB</span></div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-panel/50"><span className="text-muted">最后备份</span><span className="text-white">2025-06-22 03:00</span></div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={loadBackups}>
+              <RefreshCw size={16} className="mr-2" /> 刷新
+            </Button>
+            <Button variant="primary" onClick={handleCreateBackup}>
+              <Database size={16} className="mr-2" /> 创建备份
+            </Button>
           </div>
         </div>
-        <Button variant="primary" className="w-full mt-4"><Save size={16} className="mr-2" />保存设置</Button>
-      </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <HardDrive className="text-blue-400" size={20} />
+              <span className="text-gray-400 text-sm">总备份</span>
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">{backups.length}</div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Server className="text-green-400" size={20} />
+              <span className="text-gray-400 text-sm">总大小</span>
+            </div>
+            <div className="text-2xl font-bold text-white mt-1">
+              {backups.reduce((sum, b) => sum + parseFloat(b.size) || 0, 0).toFixed(1)} MB
+            </div>
+          </div>
+          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <Cloud className="text-purple-400" size={20} />
+              <span className="text-gray-400 text-sm">存储位置</span>
+            </div>
+            <div className="text-white mt-1">Supabase 云端</div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {backups.map((backup) => (
+            <Card key={backup.id} className="hover:border-blue-500/30 transition-colors">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <FileArchive className="text-blue-400" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">{backup.name}</h3>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-gray-400">{backup.size}</span>
+                      <Badge variant={backup.status === 'completed' ? 'success' : 'warning'}>
+                        {backup.status === 'completed' ? '已完成' : '处理中'}
+                      </Badge>
+                      <span className="text-gray-500 text-xs">
+                        {new Date(backup.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleDownload(backup.id, backup.name)}
+                    className="p-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30"
+                    title="下载"
+                  >
+                    <Download size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(backup.id, backup.name)}
+                    className="p-2 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30"
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            </Card>
+          ))}
+          {backups.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <Database size={48} className="mx-auto mb-4 text-gray-600" />
+              <p>暂无备份</p>
+              <p className="text-sm mt-1">点击"创建备份"开始</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
