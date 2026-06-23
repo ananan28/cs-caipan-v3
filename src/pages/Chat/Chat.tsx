@@ -31,17 +31,14 @@ interface Conversation {
   unread_count?: number
 }
 
-// 表情列表
 const emojis = [
   '😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊', '😋', '😎',
   '😍', '🥰', '😘', '😗', '😙', '😚', '🥲', '😜', '😝', '😛', '🤑', '🤗',
   '🤩', '🤪', '🤫', '🤭', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯',
   '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤔', '🤨', '🧐', '🙄',
   '😏', '😒', '🙃', '😤', '😣', '😖', '😫', '😩', '🥱', '😴', '😪', '😮',
-  '😯', '😲', '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
-  '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '🤯',
   '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏',
-  '✌️', '🤟', '🤘', '👌', '🤌', '🤞', '🖕', '🖐️', '✋', '👋', '🤚', '🖖'
+  '✌️', '🤟', '🤘', '👌', '🤌', '🤞', '🖐️', '✋', '👋', '🤚', '🖖'
 ]
 
 export const Chat = () => {
@@ -85,6 +82,10 @@ export const Chat = () => {
       toast.error('加载会话失败: ' + error.message)
     } else {
       setConversations(data || [])
+      // 如果有会话但没有选中，自动选中第一个
+      if (data && data.length > 0 && !selectedConv) {
+        setSelectedConv(data[0].id)
+      }
     }
     setLoading(false)
   }
@@ -118,7 +119,6 @@ export const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // 点击外部关闭表情
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
@@ -164,7 +164,7 @@ export const Chat = () => {
 
     if (existing && existing.length > 0) {
       setSelectedConv(existing[0].id)
-      toast.info('已有会话')
+      toast.info('已进入会话')
       return
     }
 
@@ -321,7 +321,6 @@ export const Chat = () => {
                       <Smile size={18} className="text-gray-400" />
                     </button>
 
-                    {/* 表情选择器 */}
                     {showEmoji && (
                       <div
                         ref={emojiRef}
