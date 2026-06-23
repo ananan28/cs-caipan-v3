@@ -1,15 +1,54 @@
-import { ReactNode, ButtonHTMLAttributes } from 'react'
+import React from 'react'
+import { cva, type VariantProps } from 'class-variance-authority'
 
-export const Button = ({ children, variant = 'primary', className = '', onClick, disabled, type = 'button' }: { children: ReactNode; variant?: 'primary' | 'green' | 'red' | 'orange' | 'ghost'; className?: string; onClick?: () => void; disabled?: boolean; type?: 'button' | 'submit' }) => {
-  const colors = {
-    primary: 'bg-gradient-to-r from-blue to-sky text-white hover:opacity-90',
-    green: 'bg-gradient-to-r from-green-500 to-green-600 text-white hover:opacity-90',
-    red: 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:opacity-90',
-    orange: 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:opacity-90',
-    ghost: 'bg-panel/50 border border-border text-muted hover:text-white hover:border-white/30',
+const buttonVariants = cva(
+  'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed',
+  {
+    variants: {
+      variant: {
+        primary: 'bg-blue-500 text-white hover:bg-blue-600',
+        secondary: 'bg-gray-700 text-white hover:bg-gray-600',
+        outline: 'border border-gray-600 text-gray-200 hover:bg-gray-700/50',
+        ghost: 'text-gray-400 hover:text-white hover:bg-white/5',
+        danger: 'bg-red-500 text-white hover:bg-red-600',
+        success: 'bg-green-500 text-white hover:bg-green-600',
+        warning: 'bg-yellow-500 text-white hover:bg-yellow-600',
+      },
+      size: {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-4 py-2 text-sm',
+        lg: 'px-6 py-3 text-base',
+      },
+    },
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
   }
+)
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  loading?: boolean
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  className,
+  variant,
+  size,
+  loading,
+  children,
+  disabled,
+  ...props
+}) => {
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`px-4 py-2.5 rounded-xl font-bold transition-all ${colors[variant]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}>
+    <button
+      className={buttonVariants({ variant, size, className })}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading && <span className="animate-spin">⏳</span>}
       {children}
     </button>
   )
