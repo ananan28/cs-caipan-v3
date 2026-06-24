@@ -1,11 +1,8 @@
 import { useState } from 'react'
-import { Card } from '@/components/Common/Card'
-import { Button } from '@/components/Common/Button'
-import { supabase } from '@/lib/supabase'
-import { 
-  Download, Users, FileText, Wallet, TrendingUp,
-  CheckSquare, RefreshCw, Loader
-} from 'lucide-react'
+import { Card } from '../../components/Common/Card'
+import { Button } from '../../components/Common/Button'
+import { supabase } from '../../lib/supabase'
+import { Download, Users, FileText, Wallet, CheckSquare, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { exportToCSV } from '../../utils/export'
 
@@ -35,10 +32,10 @@ export const DataExport = () => {
   }
 
   const exportItems = [
-    { table: 'users', filename: '用户列表', columns: ['email', 'username', 'role', 'status', 'created_at'], icon: Users, color: 'blue' },
-    { table: 'transactions', filename: '交易记录', columns: ['user_id', 'type', 'amount', 'status', 'description', 'created_at'], icon: FileText, color: 'purple' },
-    { table: 'recharge_orders', filename: '充值记录', columns: ['user_id', 'amount', 'usdt_amount', 'rate', 'points', 'address', 'status', 'created_at'], icon: Wallet, color: 'green' },
-    { table: 'tasks', filename: '任务记录', columns: ['user_id', 'platform', 'items', 'total_price', 'status', 'created_at'], icon: CheckSquare, color: 'orange' },
+    { table: 'users', filename: '用户列表', columns: ['email', 'username', 'role', 'status', 'created_at'], icon: Users },
+    { table: 'transactions', filename: '交易记录', columns: ['user_id', 'type', 'amount', 'status', 'description', 'created_at'], icon: FileText },
+    { table: 'recharge_orders', filename: '充值记录', columns: ['user_id', 'amount', 'usdt_amount', 'rate', 'points', 'address', 'status', 'created_at'], icon: Wallet },
+    { table: 'tasks', filename: '任务记录', columns: ['user_id', 'platform', 'items', 'total_price', 'status', 'created_at'], icon: CheckSquare },
   ]
 
   return (
@@ -55,11 +52,11 @@ export const DataExport = () => {
           {exportItems.map((item) => {
             const Icon = item.icon
             return (
-              <Card key={item.table} className="border border-gray-200 hover:border-yellow-300 transition-colors">
+              <Card key={item.table} className="border border-gray-200">
                 <div className="flex items-center justify-between p-6">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl bg-${item.color}-100`}>
-                      <Icon className={`text-${item.color}-500`} size={24} />
+                    <div className="p-3 bg-blue-100 rounded-xl">
+                      <Icon className="text-blue-500" size={24} />
                     </div>
                     <div>
                       <h3 className="text-gray-900 font-semibold">{item.filename}</h3>
@@ -71,21 +68,13 @@ export const DataExport = () => {
                     onClick={() => exportData(item.table, item.filename, item.columns)}
                     disabled={loading === item.table}
                   >
-                    {loading === item.table ? (
-                      <Loader size={16} className="animate-spin mr-2" />
-                    ) : (
-                      <Download size={16} className="mr-2" />
-                    )}
+                    {loading === item.table ? <Loader size={16} className="animate-spin" /> : <Download size={16} />}
                     {loading === item.table ? '导出中...' : '导出'}
                   </Button>
                 </div>
               </Card>
             )
           })}
-        </div>
-
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-          <p className="text-yellow-800 text-sm">💡 所有导出文件为 CSV 格式，可用 Excel 打开</p>
         </div>
       </div>
     </div>
