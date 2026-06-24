@@ -7,33 +7,17 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
   TrendingUp, TrendingDown, DollarSign, Calendar, Search,
-  RefreshCw, Download, Filter, CheckCircle, XCircle, Clock,
-  Eye, Wallet, CreditCard
+  RefreshCw, Download, Filter, CheckCircle, XCircle, Clock
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface FinanceRecord {
-  id: string
-  user_id: string
-  type: string
-  amount: number
-  status: string
-  description: string
-  created_at: string
-  user?: {
-    email: string
-    username: string
-  }
-}
-
 export const Finance = () => {
   const { user } = useAuthStore()
-  const [records, setRecords] = useState<FinanceRecord[]>([])
+  const [records, setRecords] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
-  const [dateRange, setDateRange] = useState('7d')
   const [stats, setStats] = useState({
     totalIncome: 0,
     totalExpense: 0,
@@ -41,16 +25,18 @@ export const Finance = () => {
     netProfit: 0
   })
 
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
+
   const loadFinance = async () => {
     setLoading(true)
 
+    // 管理员看所有，用户看自己的
     let query = supabase
-      .from('transactions')
-      .select('*, user:users(email, username)')
+      .from('recharge_orders')
+      .select('*')
       .order('created_at', { ascending: false })
 
-    // 非管理员只查看自己的
-    if (user?.role !== 'SuperAdmin' && user?.role !== 'Admin') {
+    if (!isAdmin) {
       query = query.eq('user_id', user?.id)
     }
 
@@ -60,20 +46,16 @@ export const Finance = () => {
       toast.error('加载数据失败: ' + error.message)
     } else {
       setRecords(data || [])
-
-      // 计算统计
-      const income = data?.filter(t => t.amount > 0 && t.status === 'completed')
+      const income = data?.filter(t => t.status === 'completed')
         .reduce((sum, t) => sum + t.amount, 0) || 0
-      const expense = data?.filter(t => t.amount < 0 && t.status === 'completed')
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0
-      const pending = data?.filter(t => t.status === 'pending')
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0) || 0
+      const pending = data?.filter(t => t.status === 'pending' || t.status === 'paid')
+        .reduce((sum, t) => sum + t.amount, 0) || 0
 
       setStats({
         totalIncome: income,
-        totalExpense: expense,
+        totalExpense: 0,
         pendingAmount: pending,
-        netProfit: income - expense
+        netProfit: income
       })
     }
     setLoading(false)
@@ -83,26 +65,38 @@ export const Finance = () => {
     loadFinance()
   }, [user])
 
+  // 管理员审核通过
   const handleApprove = async (id: string) => {
+    if (!isAdmin) {
+      toast.error('只有管理员可以审核')
+      return
+    }
+
     const { error } = await supabase
-      .from('transactions')
-      .update({ status: 'completed' })
+      .from('recharge_orders')
+      .update({ status: 'completed', confirmed_at: new Date().toISOString() })
       .eq('id', id)
 
     if (error) {
-      toast.error('审批失败: ' + error.message)
+      toast.error('审核失败: ' + error.message)
     } else {
-      toast.success('已通过')
+      toast.success('✅ 已通过')
       loadFinance()
     }
   }
 
+  // 管理员拒绝
   const handleReject = async (id: string) => {
-    if (!confirm('确定要拒绝这笔交易吗？')) return
+    if (!isAdmin) {
+      toast.error('只有管理员可以拒绝')
+      return
+    }
+
+    if (!confirm('确定要拒绝此订单吗？')) return
 
     const { error } = await supabase
-      .from('transactions')
-      .update({ status: 'failed' })
+      .from('recharge_orders')
+      .update({ status: 'cancelled' })
       .eq('id', id)
 
     if (error) {
@@ -114,15 +108,15 @@ export const Finance = () => {
   }
 
   const handleExport = () => {
+    // 导出逻辑
     const csv = [
-      ['ID', '用户', '类型', '金额', '状态', '说明', '时间'],
+      ['ID', '用户', '金额', '积分', '状态', '时间'],
       ...records.map(r => [
         r.id.slice(0, 8),
-        r.user?.email || r.user_id,
-        r.type,
+        r.user_id,
         r.amount,
+        r.points,
         r.status,
-        r.description || '',
         new Date(r.created_at).toLocaleString()
       ])
     ].map(row => row.join(',')).join('\n')
@@ -136,42 +130,43 @@ export const Finance = () => {
     toast.success('导出成功')
   }
 
-  const typeLabels: Record<string, string> = {
-    recharge: '充值',
-    transfer_out: '转出',
-    transfer_in: '转入',
-    reward: '奖励'
-  }
-
   const statusColors: Record<string, string> = {
     pending: 'warning',
+    paid: 'info',
     completed: 'success',
-    failed: 'danger'
+    cancelled: 'default',
+    expired: 'danger'
+  }
+
+  const statusLabels: Record<string, string> = {
+    pending: '待支付',
+    paid: '已支付-待审核',
+    completed: '已完成',
+    cancelled: '已取消',
+    expired: '已过期'
   }
 
   const filtered = records.filter(r => {
-    const matchSearch = r.id.includes(search) || r.user?.email?.includes(search)
-    const matchType = !filterType || r.type === filterType
+    const matchSearch = r.id.includes(search) || r.user_id?.includes(search)
     const matchStatus = !filterStatus || r.status === filterStatus
-    return matchSearch && matchType && matchStatus
+    return matchSearch && matchStatus
   })
 
   if (loading) {
     return (
-      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+      <div className="p-6 bg-[#f0f2f5] min-h-screen flex items-center justify-center">
         <div className="text-gray-400">加载中...</div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+    <div className="p-6 bg-[#f0f2f5] min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* 头部 */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">财务管理</h1>
-            <p className="text-gray-400 text-sm">查看所有财务记录和统计</p>
+            <h1 className="text-2xl font-bold text-gray-900">财务管理</h1>
+            <p className="text-gray-500 text-sm">查看所有财务记录和统计</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={loadFinance}>
@@ -183,147 +178,118 @@ export const Finance = () => {
           </div>
         </div>
 
-        {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <TrendingUp className="text-green-400" size={20} />
-              <span className="text-gray-400 text-sm">总收入</span>
+              <TrendingUp className="text-green-500" size={20} />
+              <span className="text-gray-500 text-sm">总收入</span>
             </div>
-            <div className="text-2xl font-bold text-green-400 mt-1">
+            <div className="text-2xl font-bold text-green-500 mt-1">
               ${stats.totalIncome.toFixed(2)}
             </div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <TrendingDown className="text-red-400" size={20} />
-              <span className="text-gray-400 text-sm">总支出</span>
+              <TrendingDown className="text-red-500" size={20} />
+              <span className="text-gray-500 text-sm">总支出</span>
             </div>
-            <div className="text-2xl font-bold text-red-400 mt-1">
+            <div className="text-2xl font-bold text-red-500 mt-1">
               ${stats.totalExpense.toFixed(2)}
             </div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <Wallet className="text-blue-400" size={20} />
-              <span className="text-gray-400 text-sm">净利润</span>
+              <DollarSign className="text-blue-500" size={20} />
+              <span className="text-gray-500 text-sm">净利润</span>
             </div>
-            <div className={`text-2xl font-bold mt-1 ${stats.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            <div className={`text-2xl font-bold mt-1 ${stats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               ${stats.netProfit.toFixed(2)}
             </div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-center gap-2">
-              <Clock className="text-yellow-400" size={20} />
-              <span className="text-gray-400 text-sm">待处理金额</span>
+              <Clock className="text-yellow-500" size={20} />
+              <span className="text-gray-500 text-sm">待处理金额</span>
             </div>
-            <div className="text-2xl font-bold text-yellow-400 mt-1">
+            <div className="text-2xl font-bold text-yellow-500 mt-1">
               ${stats.pendingAmount.toFixed(2)}
             </div>
           </div>
         </div>
 
-        {/* 搜索和筛选 */}
         <Card>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 p-4">
             <div className="flex-1 min-w-[200px]">
               <Input
                 placeholder="搜索ID、用户..."
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
-                className="bg-[#1a1f35] border-gray-700 text-white"
+                className="bg-gray-50 border-gray-200 text-gray-900"
                 prefix={<Search size={16} className="text-gray-400" />}
               />
             </div>
             <select
-              className="px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-            >
-              <option value="">全部类型</option>
-              <option value="recharge">充值</option>
-              <option value="transfer_out">转出</option>
-              <option value="transfer_in">转入</option>
-              <option value="reward">奖励</option>
-            </select>
-            <select
-              className="px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:border-yellow-400"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="">全部状态</option>
-              <option value="pending">待处理</option>
+              <option value="pending">待支付</option>
+              <option value="paid">待审核</option>
               <option value="completed">已完成</option>
-              <option value="failed">失败</option>
+              <option value="cancelled">已取消</option>
+              <option value="expired">已过期</option>
             </select>
-            <Button variant="ghost" onClick={() => { setSearch(''); setFilterType(''); setFilterStatus('') }}>
+            <Button variant="ghost" onClick={() => { setSearch(''); setFilterStatus('') }}>
               重置
             </Button>
           </div>
         </Card>
 
-        {/* 记录列表 */}
         <Card>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-[#1a1f35]">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">ID</th>
-                  {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">用户</th>
-                  )}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">类型</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">金额</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">说明</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">时间</th>
-                  {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase">操作</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">金额</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">积分</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
+                  {isAdmin && (
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
                   )}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-800 hover:bg-[#1a1f35]/50">
+                  <tr key={r.id} className="border-t border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-400 text-xs font-mono">{r.id.slice(0, 8)}</td>
-                    {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && (
-                      <td className="px-4 py-3 text-white text-sm">{r.user?.email || r.user_id.slice(0, 8)}</td>
-                    )}
-                    <td className="px-4 py-3">
-                      <Badge variant="info">{typeLabels[r.type] || r.type}</Badge>
-                    </td>
-                    <td className={`px-4 py-3 text-sm font-medium ${
-                      r.amount > 0 ? 'text-green-400' : 'text-red-400'
-                    }`}>
-                      {r.amount > 0 ? '+' : ''}{r.amount}
-                    </td>
+                    <td className="px-4 py-3 text-gray-900 text-sm">{r.user_id?.slice(0, 8) || '未知'}</td>
+                    <td className="px-4 py-3 text-gray-900 font-medium">${r.amount.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-gray-900">{r.points?.toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <Badge variant={statusColors[r.status] || 'default'}>
-                        {r.status === 'completed' && <CheckCircle size={12} className="mr-1" />}
-                        {r.status === 'pending' && <Clock size={12} className="mr-1" />}
-                        {r.status === 'failed' && <XCircle size={12} className="mr-1" />}
-                        {r.status === 'completed' ? '已完成' :
-                         r.status === 'pending' ? '待处理' :
-                         r.status === 'failed' ? '失败' : r.status}
+                        {statusLabels[r.status] || r.status}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">{r.description || '-'}</td>
                     <td className="px-4 py-3 text-gray-400 text-sm">
                       {new Date(r.created_at).toLocaleString()}
                     </td>
-                    {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && r.status === 'pending' && (
+                    {isAdmin && r.status === 'paid' && (
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleApprove(r.id)}
-                            className="p-1.5 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30"
+                            className="p-1.5 bg-green-500/20 text-green-500 rounded hover:bg-green-500/30"
                             title="通过"
                           >
                             <CheckCircle size={16} />
                           </button>
                           <button
                             onClick={() => handleReject(r.id)}
-                            className="p-1.5 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30"
+                            className="p-1.5 bg-red-500/20 text-red-500 rounded hover:bg-red-500/30"
                             title="拒绝"
                           >
                             <XCircle size={16} />
@@ -331,13 +297,14 @@ export const Finance = () => {
                         </div>
                       </td>
                     )}
+                    {isAdmin && r.status === 'pending' && (
+                      <td className="px-4 py-3 text-gray-400 text-xs">等待用户支付</td>
+                    )}
                   </tr>
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-8 text-gray-400">
-                      暂无记录
-                    </td>
+                    <td colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-gray-400">暂无记录</td>
                   </tr>
                 )}
               </tbody>
