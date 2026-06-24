@@ -11,10 +11,13 @@ export default defineConfig({
     rollupOptions: {
       external: [],
     },
-    sourcemap: false,
   },
   esbuild: {
-    // 忽略 TypeScript 错误
     logOverride: { 'ts-1085': 'silent' },
+  },
+  resolve: {
+    alias: {
+      '@': '/src',
+    },
   },
 })
