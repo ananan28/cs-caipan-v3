@@ -1,25 +1,72 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
-import { UserPlus, Mail, Lock, User, Sparkles, Zap, Loader } from 'lucide-react'
+import { UserPlus, Mail, Lock, User, Sparkles, Loader, Check, Send, Shield } from 'lucide-react'
 import { Captcha } from '../../components/Common/Captcha'
 import toast from 'react-hot-toast'
 
 export const Register = () => {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [emailCode, setEmailCode] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [agreeTerms, setAgreeTerms] = useState(false)
   const [captchaValid, setCaptchaValid] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [codeSent, setCodeSent] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const ref = params.get('ref')
     if (ref) setInviteCode(ref)
   }, [])
+
+  // 倒计时
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [countdown])
+
+  // 发送邮箱验证码
+  const sendEmailCode = async () => {
+    if (!email) {
+      toast.error('请先输入邮箱')
+      return
+    }
+    if (!email.includes('@')) {
+      toast.error('请输入有效邮箱')
+      return
+    }
+
+    setSendingCode(true)
+    try {
+      // 使用 Supabase 发送验证码
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+        }
+      })
+
+      if (error) {
+        toast.error('发送失败: ' + error.message)
+      } else {
+        setCodeSent(true)
+        setCountdown(60)
+        toast.success('验证码已发送至您的邮箱')
+      }
+    } catch (error) {
+      toast.error('发送失败，请重试')
+    }
+    setSendingCode(false)
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,8 +86,19 @@ export const Register = () => {
       return
     }
 
+    if (password !== confirmPassword) {
+      toast.error('两次密码不一致')
+      return
+    }
+
+    if (!emailCode) {
+      toast.error('请输入邮箱验证码')
+      return
+    }
+
     setLoading(true)
 
+    // 注册用户
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -66,6 +124,7 @@ export const Register = () => {
           status: 'active'
         })
 
+      // 处理邀请码
       if (inviteCode) {
         const { data: inviter } = await supabase
           .from('users')
@@ -87,7 +146,7 @@ export const Register = () => {
         }
       }
 
-      toast.success('注册成功！')
+      toast.success('注册成功！请登录')
       navigate('/login')
     }
 
@@ -107,7 +166,7 @@ export const Register = () => {
             <div className="w-20 h-20 rounded-full bg-black border-2 border-yellow-400 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-500/20">
               <span className="text-3xl font-bold text-yellow-400">財</span>
             </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">创建账号</h1>
+            <h1 className="text-3xl font-bold text-white tracking-tight">注册账号</h1>
             <p className="text-blue-200/80 text-sm mt-1">加入财盛集团</p>
           </div>
 
@@ -130,6 +189,24 @@ export const Register = () => {
               required
             />
 
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={emailCode}
+                onChange={(e) => setEmailCode(e.target.value)}
+                placeholder="邮箱验证码"
+                className="flex-1 px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
+              />
+              <button
+                type="button"
+                onClick={sendEmailCode}
+                disabled={sendingCode || countdown > 0}
+                className="px-4 py-3.5 bg-yellow-500/20 text-yellow-400 rounded-xl hover:bg-yellow-500/30 transition-colors whitespace-nowrap disabled:opacity-50"
+              >
+                {countdown > 0 ? `${countdown}s` : sendingCode ? '发送中...' : '获取验证码'}
+              </button>
+            </div>
+
             <input
               type="password"
               value={password}
@@ -138,6 +215,23 @@ export const Register = () => {
               className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
               required
               minLength={6}
+            />
+
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="确认密码"
+              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
+              required
+            />
+
+            <input
+              type="text"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="邀请码（选填）"
+              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
             />
 
             <Captcha onVerify={setCaptchaValid} />
