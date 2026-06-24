@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuthStore } from '../../store/authStore'
-import { Zap, Loader, Mail, Lock, Sparkles } from 'lucide-react'
+import { Zap, Loader, Mail, Lock, Sparkles, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export const Login = () => {
@@ -100,6 +100,12 @@ export const Login = () => {
               />
             </div>
 
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-white/40 text-xs hover:text-yellow-400 transition-colors">
+                忘记密码？
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -108,6 +114,15 @@ export const Login = () => {
               {loading ? <Loader size={24} className="animate-spin" /> : <><Zap size={20} className="fill-white/20" /> 登录</>}
             </button>
           </form>
+
+          <div className="mt-4 text-center">
+            <p className="text-white/40 text-sm">
+              还没有账号？{' '}
+              <Link to="/register" className="text-yellow-400 hover:underline font-medium flex items-center justify-center gap-1">
+                <UserPlus size={14} /> 立即注册
+              </Link>
+            </p>
+          </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-white/30">© 2025 财盛集团 · 博亿研发中心</p>
