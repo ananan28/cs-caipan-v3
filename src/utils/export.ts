@@ -1,101 +1,60 @@
-import toast from 'react-hot-toast'
-
-export const exportCSV = (data: any[], filename: string) => {
+// 导出为 CSV
+export const exportToCSV = (data: any[], filename: string, headers: string[]) => {
   if (!data || data.length === 0) {
-    toast.error('没有数据可导出')
+    console.warn('没有数据可导出')
     return
   }
-  try {
-    const headers = Object.keys(data[0])
-    const csv = [
-      headers.join(','),
-      ...data.map(row => headers.map(h => `"${row[h] || ''}"`).join(','))
-    ].join('\n')
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${filename}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success(`✅ ${filename}.csv 已导出`)
-  } catch (error) {
-    toast.error('导出失败')
-  }
-}
 
-export const exportJSON = (data: any[], filename: string) => {
-  if (!data || data.length === 0) {
-    toast.error('没有数据可导出')
-    return
-  }
-  try {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${filename}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success(`✅ ${filename}.json 已导出`)
-  } catch (error) {
-    toast.error('导出失败')
-  }
-}
-
-export const exportExcel = (data: any[], filename: string) => {
-  if (!data || data.length === 0) {
-    toast.error('没有数据可导出')
-    return
-  }
-  try {
-    const headers = Object.keys(data[0])
-    let html = `<html><head><meta charset="UTF-8"><style>td{mso-number-format:"@"}</style></head><body><table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`
-    data.forEach(row => {
-      html += `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
+  let csv = headers.join(',') + '\n'
+  
+  data.forEach(row => {
+    const values = headers.map(h => {
+      let val = row[h] !== undefined ? row[h] : ''
+      if (typeof val === 'string') {
+        val = val.replace(/"/g, '""')
+        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+          val = `"${val}"`
+        }
+      }
+      return val
     })
-    html += '</table></body></html>'
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${filename}.xls`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast.success(`✅ ${filename}.xls 已导出`)
-  } catch (error) {
-    toast.error('导出失败')
-  }
+    csv += values.join(',') + '\n'
+  })
+
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${filename}_${new Date().toISOString().slice(0,10)}.csv`
+  link.click()
+  URL.revokeObjectURL(link.href)
 }
 
-export const exportPDF = async (data: any[], filename: string) => {
-  if (!data || data.length === 0) {
-    toast.error('没有数据可导出')
-    return
-  }
-  try {
-    const headers = Object.keys(data[0] || {})
-    let html = `<html><head><title>${filename}</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f5f5f5}</style></head><body><h1>${filename}</h1><table><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`
-    data.forEach(row => {
-      html += `<tr>${headers.map(h => `<td>${row[h] || ''}</td>`).join('')}</tr>`
-    })
-    html += '</table></body></html>'
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(html)
-      printWindow.document.close()
-      setTimeout(() => { printWindow.print() }, 500)
-      toast.success(`✅ ${filename} 已发送到打印机`)
-    } else {
-      toast.error('请允许弹出窗口')
-    }
-  } catch (error) {
-    toast.error('导出失败')
-  }
+// 导出用户列表
+export const exportUsers = async (supabase: any) => {
+  const { data } = await supabase.from('users').select('email, username, role, status, created_at')
+  if (data) exportToCSV(data, 'users', ['email', 'username', 'role', 'status', 'created_at'])
+}
+
+// 导出交易记录
+export const exportTransactions = async (supabase: any) => {
+  const { data } = await supabase
+    .from('transactions')
+    .select('user_id, type, amount, status, description, created_at')
+  if (data) exportToCSV(data, 'transactions', ['user_id', 'type', 'amount', 'status', 'description', 'created_at'])
+}
+
+// 导出充值记录
+export const exportRechargeOrders = async (supabase: any) => {
+  const { data } = await supabase
+    .from('recharge_orders')
+    .select('user_id, amount, usdt_amount, rate, points, address, status, created_at')
+  if (data) exportToCSV(data, 'recharge_orders', ['user_id', 'amount', 'usdt_amount', 'rate', 'points', 'address', 'status', 'created_at'])
+}
+
+// 导出任务记录
+export const exportTasks = async (supabase: any) => {
+  const { data } = await supabase
+    .from('tasks')
+    .select('user_id, platform, items, total_price, status, created_at')
+  if (data) exportToCSV(data, 'tasks', ['user_id', 'platform', 'items', 'total_price', 'status', 'created_at'])
 }
