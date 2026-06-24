@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
-import zh from '@/locales/zh'
+import zh from '../locales/zh'
 
 interface LanguageContextType {
   t: (key: string) => string

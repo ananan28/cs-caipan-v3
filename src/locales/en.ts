@@ -1,45 +1,36 @@
-export const en = {
+export default {
   common: {
-    title: 'CS Group',
-    version: 'V3.0',
-    login: 'Login',
-    logout: 'Logout',
-    save: 'Save',
-    cancel: 'Cancel',
     confirm: 'Confirm',
+    cancel: 'Cancel',
+    save: 'Save',
     delete: 'Delete',
     edit: 'Edit',
+    add: 'Add',
     search: 'Search',
     refresh: 'Refresh',
-    back: 'Back',
-    close: 'Close',
+    loading: 'Loading...',
+    noData: 'No data',
   },
-  wallet: {
-    title: 'Points Wallet',
-    recharge: 'Recharge',
-    transfer: 'Transfer',
-    balance: 'Total Points',
-    transactions: 'Transactions',
-    recharge_success: 'Recharge Successful!',
-    transfer_success: 'Transfer Successful!',
+  auth: {
+    login: 'Login',
+    logout: 'Logout',
+    email: 'Email',
+    password: 'Password',
+    loginSuccess: 'Login successful',
+    loginFailed: 'Login failed',
   },
   user: {
     title: 'User Management',
-    create: 'Create User',
     name: 'Username',
-    email: 'Email',
     role: 'Role',
     status: 'Status',
-    points: 'Points',
+    active: 'Active',
+    inactive: 'Inactive',
   },
-  dashboard: {
-    title: 'Dashboard',
-    welcome: 'Welcome back',
-    total_users: 'Total Users',
-    active_users: 'Active Users',
-    total_points: 'Total Points',
-    today_recharge: 'Today\'s Recharge',
+  wallet: {
+    title: 'Wallet',
+    balance: 'Balance',
+    recharge: 'Recharge',
+    transfer: 'Transfer',
   }
 }
-
-export type Language = typeof en
