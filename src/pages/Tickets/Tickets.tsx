@@ -6,29 +6,14 @@ import { Input } from '@/components/Forms/Input'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
 import {
-  Ticket, Search, RefreshCw, Plus, Eye, CheckCircle,
-  XCircle, Clock, MessageSquare, User, X
+  Ticket, Search, RefreshCw, Plus, CheckCircle,
+  XCircle, Clock, User, X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-interface Ticket {
-  id: string
-  user_id: string
-  title: string
-  content: string
-  category: string
-  priority: string
-  status: string
-  created_at: string
-  user?: {
-    email: string
-    username: string
-  }
-}
-
 export const Tickets = () => {
   const { user } = useAuthStore()
-  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -37,14 +22,16 @@ export const Tickets = () => {
   const [newContent, setNewContent] = useState('')
   const [newCategory, setNewCategory] = useState('general')
 
+  const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
+
   const loadTickets = async () => {
     setLoading(true)
     let query = supabase
       .from('tickets')
-      .select('*, user:users(email, username)')
+      .select('*')
       .order('created_at', { ascending: false })
 
-    if (user?.role !== 'SuperAdmin' && user?.role !== 'Admin') {
+    if (!isAdmin) {
       query = query.eq('user_id', user?.id)
     }
 
@@ -126,26 +113,26 @@ export const Tickets = () => {
   }
 
   const filtered = tickets.filter(t => {
-    const matchSearch = t.title.includes(search) || t.user?.email?.includes(search)
+    const matchSearch = t.title.includes(search)
     const matchStatus = !filterStatus || t.status === filterStatus
     return matchSearch && matchStatus
   })
 
   if (loading) {
     return (
-      <div className="p-6 bg-[#0a0f1f] min-h-screen flex items-center justify-center">
+      <div className="p-6 bg-[#f0f2f5] min-h-screen flex items-center justify-center">
         <div className="text-gray-400">加载中...</div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 bg-[#0a0f1f] min-h-screen">
+    <div className="p-6 bg-[#f0f2f5] min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">工单系统</h1>
-            <p className="text-gray-400 text-sm">管理所有工单</p>
+            <h1 className="text-2xl font-bold text-gray-900">工单系统</h1>
+            <p className="text-gray-500 text-sm">管理所有工单</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={loadTickets}>
@@ -158,43 +145,43 @@ export const Tickets = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">总工单</div>
-            <div className="text-white text-2xl font-bold">{tickets.length}</div>
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-500 text-sm">总工单</div>
+            <div className="text-gray-900 text-2xl font-bold">{tickets.length}</div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">待处理</div>
-            <div className="text-yellow-400 text-2xl font-bold">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-500 text-sm">待处理</div>
+            <div className="text-yellow-500 text-2xl font-bold">
               {tickets.filter(t => t.status === 'open').length}
             </div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">处理中</div>
-            <div className="text-blue-400 text-2xl font-bold">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-500 text-sm">处理中</div>
+            <div className="text-blue-500 text-2xl font-bold">
               {tickets.filter(t => t.status === 'processing').length}
             </div>
           </div>
-          <div className="bg-[#12182b] border border-gray-800 rounded-lg p-4">
-            <div className="text-gray-400 text-sm">已解决</div>
-            <div className="text-green-400 text-2xl font-bold">
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="text-gray-500 text-sm">已解决</div>
+            <div className="text-green-500 text-2xl font-bold">
               {tickets.filter(t => t.status === 'resolved').length}
             </div>
           </div>
         </div>
 
         <Card>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 p-4">
             <div className="flex-1 min-w-[200px]">
               <Input
                 placeholder="搜索工单..."
                 value={search}
                 onChange={(e: any) => setSearch(e.target.value)}
-                className="bg-[#1a1f35] border-gray-700 text-white"
+                className="bg-gray-50 border-gray-200 text-gray-900"
                 prefix={<Search size={16} className="text-gray-400" />}
               />
             </div>
             <select
-              className="px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:border-yellow-400"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -211,51 +198,42 @@ export const Tickets = () => {
         </Card>
 
         <Card>
-          <div className="space-y-4">
+          <div className="divide-y divide-gray-200">
             {filtered.map((ticket) => (
-              <div key={ticket.id} className="border-b border-gray-800 last:border-0 pb-4 last:pb-0">
+              <div key={ticket.id} className="p-4 hover:bg-gray-50">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <h3 className="text-white font-semibold">{ticket.title}</h3>
-                      <Badge variant={statusColors[ticket.status]}>
-                        {statusLabels[ticket.status]}
+                      <h3 className="text-gray-900 font-semibold">{ticket.title}</h3>
+                      <Badge variant={statusColors[ticket.status] || 'default'}>
+                        {statusLabels[ticket.status] || ticket.status}
                       </Badge>
-                      <Badge variant={priorityColors[ticket.priority]}>
+                      <Badge variant={priorityColors[ticket.priority] || 'default'}>
                         {ticket.priority}
                       </Badge>
+                      <Badge variant="info">{ticket.category}</Badge>
                     </div>
-                    <p className="text-gray-400 text-sm mt-1">{ticket.content}</p>
-                    <div className="flex items-center gap-4 mt-2 text-gray-500 text-xs">
-                      <span>分类: {ticket.category}</span>
-                      <span>用户: {ticket.user?.email || ticket.user_id}</span>
+                    <p className="text-gray-600 text-sm mt-1">{ticket.content}</p>
+                    <div className="flex items-center gap-4 mt-2 text-gray-400 text-xs">
+                      <span>用户: {ticket.user_id?.slice(0, 8) || '未知'}</span>
                       <span>{new Date(ticket.created_at).toLocaleString()}</span>
                     </div>
                   </div>
-                  {(user?.role === 'SuperAdmin' || user?.role === 'Admin') && ticket.status !== 'closed' && (
+                  {isAdmin && ticket.status !== 'closed' && (
                     <div className="flex gap-2">
                       {ticket.status === 'open' && (
-                        <button
-                          onClick={() => handleUpdateStatus(ticket.id, 'processing')}
-                          className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 text-sm"
-                        >
+                        <Button size="sm" onClick={() => handleUpdateStatus(ticket.id, 'processing')}>
                           处理中
-                        </button>
+                        </Button>
                       )}
                       {ticket.status === 'processing' && (
-                        <button
-                          onClick={() => handleUpdateStatus(ticket.id, 'resolved')}
-                          className="px-3 py-1 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 text-sm"
-                        >
+                        <Button size="sm" variant="success" onClick={() => handleUpdateStatus(ticket.id, 'resolved')}>
                           解决
-                        </button>
+                        </Button>
                       )}
-                      <button
-                        onClick={() => handleUpdateStatus(ticket.id, 'closed')}
-                        className="px-3 py-1 bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 text-sm"
-                      >
+                      <Button size="sm" variant="danger" onClick={() => handleUpdateStatus(ticket.id, 'closed')}>
                         关闭
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -269,38 +247,37 @@ export const Tickets = () => {
 
         {showCreate && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-[#12182b] border border-gray-800 rounded-2xl p-6 w-full max-w-md">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">创建工单</h2>
-                <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-white">
+                <h2 className="text-xl font-bold text-gray-900">创建工单</h2>
+                <button onClick={() => setShowCreate(false)} className="text-gray-400 hover:text-gray-600">
                   <X size={24} />
                 </button>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-white text-sm font-medium block mb-1">标题</label>
-                  <input
-                    type="text"
+                  <label className="text-gray-700 text-sm font-medium block mb-1">标题</label>
+                  <Input
                     value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    onChange={(e: any) => setNewTitle(e.target.value)}
+                    className="bg-gray-50 border-gray-200 text-gray-900"
                   />
                 </div>
                 <div>
-                  <label className="text-white text-sm font-medium block mb-1">内容</label>
+                  <label className="text-gray-700 text-sm font-medium block mb-1">内容</label>
                   <textarea
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     rows={4}
-                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:border-yellow-400"
                   />
                 </div>
                 <div>
-                  <label className="text-white text-sm font-medium block mb-1">分类</label>
+                  <label className="text-gray-700 text-sm font-medium block mb-1">分类</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value)}
-                    className="w-full px-4 py-2 bg-[#1a1f35] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:border-yellow-400"
                   >
                     <option value="general">通用</option>
                     <option value="technical">技术</option>
@@ -308,7 +285,9 @@ export const Tickets = () => {
                     <option value="other">其他</option>
                   </select>
                 </div>
-                <Button className="w-full" onClick={handleCreate}>提交</Button>
+                <Button className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500" onClick={handleCreate}>
+                  提交
+                </Button>
               </div>
             </div>
           </div>
