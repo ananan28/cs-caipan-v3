@@ -1,4 +1,4 @@
-// 直接硬编码 API Key（临时方案，确保能用）
+// DeepSeek AI 客服 - 硬编码 API Key
 const API_KEY = 'sk-c671a8125f4d4284bd69f9b98dfe226b'
 const API_URL = 'https://api.deepseek.com/v1/chat/completions'
 
@@ -20,8 +20,8 @@ const SYSTEM_PROMPT = `你是财盛集团的AI客服助手。你的职责是：
 
 export const sendAIMessage = async (messages: AIMessage[]): Promise<string> => {
   try {
-    console.log('发送AI请求...', messages)
-    
+    console.log('🤖 AI请求发送中...')
+
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
@@ -39,20 +39,20 @@ export const sendAIMessage = async (messages: AIMessage[]): Promise<string> => {
       })
     })
 
-    console.log('AI响应状态:', response.status)
+    console.log('📡 AI响应状态:', response.status)
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('AI错误响应:', errorText)
-      return '❌ AI服务暂时不可用，请稍后重试或联系人工客服。'
+      const errorData = await response.json()
+      console.error('❌ AI错误:', errorData)
+      return `❌ AI服务异常 (${response.status})，请稍后重试或联系人工客服。`
     }
 
     const data = await response.json()
-    console.log('AI回复:', data)
+    console.log('✅ AI回复成功')
     return data.choices?.[0]?.message?.content || '抱歉，没有获取到回复。'
     
   } catch (error) {
-    console.error('AI请求失败:', error)
+    console.error('❌ AI请求失败:', error)
     return '❌ 网络异常，请检查网络连接后重试。'
   }
 }
