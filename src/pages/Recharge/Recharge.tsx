@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { generateQRCode } from '@/utils/qrcode'
 import {
   CreditCard, Copy, RefreshCw, CheckCircle, XCircle,
-  Clock, AlertCircle, Wallet, Zap
+  Clock, AlertCircle, Wallet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -133,7 +133,6 @@ export const Recharge = () => {
     }
   }
 
-  // 用户只能标记"已支付"，不能直接确认到账
   const handleMarkPaid = async () => {
     if (!currentOrderId) return
 
@@ -156,7 +155,6 @@ export const Recharge = () => {
     }
   }
 
-  // 只有管理员能确认到账
   const handleConfirmComplete = async (id: string) => {
     if (!isAdmin) {
       toast.error('只有管理员可以确认到账')
@@ -179,7 +177,6 @@ export const Recharge = () => {
     }
   }
 
-  // 管理员拒绝
   const handleReject = async (id: string) => {
     if (!isAdmin) {
       toast.error('只有管理员可以拒绝')
@@ -453,7 +450,6 @@ export const Recharge = () => {
                 <p className="text-gray-400 text-xs mt-1">≈ {rate * currentAmount} 积分</p>
               </div>
 
-              {/* 二维码 */}
               <div className="text-center mb-4">
                 <img 
                   src={generateQRCode(currentAddress)} 
