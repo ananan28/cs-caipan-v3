@@ -9,17 +9,12 @@ export const Register = () => {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
-  const [emailCode, setEmailCode] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [captchaValid, setCaptchaValid] = useState(false)
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [sendingCode, setSendingCode] = useState(false)
-  const [codeSent, setCodeSent] = useState(false)
-  const [countdown, setCountdown] = useState(0)
-  const [confirmError, setConfirmError] = useState('')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -27,59 +22,9 @@ export const Register = () => {
     if (ref) setInviteCode(ref)
   }, [])
 
-  useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [countdown])
-
-  const sendEmailCode = async () => {
-    if (!email) {
-      toast.error('请先输入邮箱')
-      return
-    }
-    if (!email.includes('@')) {
-      toast.error('请输入有效邮箱')
-      return
-    }
-
-    setSendingCode(true)
-    try {
-      // 使用 Supabase OTP 发送验证码
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false,
-        }
-      })
-
-      if (error) {
-        // 如果 OTP 失败，模拟发送（开发环境）
-        if (error.message.includes('not supported')) {
-          toast.success('验证码已发送（模拟）')
-          setCodeSent(true)
-          setCountdown(60)
-          setEmailCode('123456') // 开发测试用
-        } else {
-          toast.error('发送失败: ' + error.message)
-        }
-      } else {
-        setCodeSent(true)
-        setCountdown(60)
-        toast.success('验证码已发送至您的邮箱')
-      }
-    } catch (error) {
-      toast.error('发送失败，请重试')
-    }
-    setSendingCode(false)
-  }
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    setConfirmError('')
-
     if (!agreeTerms) {
       toast.error('请同意服务条款')
       return
@@ -96,18 +41,12 @@ export const Register = () => {
     }
 
     if (password !== confirmPassword) {
-      setConfirmError('两次密码不一致')
-      return
-    }
-
-    if (!emailCode || emailCode.length < 4) {
-      toast.error('请输入有效的邮箱验证码')
+      toast.error('两次密码不一致')
       return
     }
 
     setLoading(true)
 
-    // 注册用户
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -124,7 +63,6 @@ export const Register = () => {
     }
 
     if (authData.user) {
-      // 创建用户记录
       await supabase
         .from('users')
         .insert({
@@ -135,7 +73,6 @@ export const Register = () => {
           status: 'active'
         })
 
-      // 处理邀请码
       if (inviteCode) {
         const { data: inviter } = await supabase
           .from('users')
@@ -157,7 +94,7 @@ export const Register = () => {
         }
       }
 
-      toast.success('注册成功！请查收验证邮件后登录')
+      toast.success('✅ 注册成功！请查收验证邮件后登录')
       navigate('/login')
     }
 
@@ -200,25 +137,6 @@ export const Register = () => {
               required
             />
 
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={emailCode}
-                onChange={(e) => setEmailCode(e.target.value)}
-                placeholder="邮箱验证码"
-                className="flex-1 px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-                required
-              />
-              <button
-                type="button"
-                onClick={sendEmailCode}
-                disabled={sendingCode || countdown > 0}
-                className="px-4 py-3.5 bg-yellow-500/20 text-yellow-400 rounded-xl hover:bg-yellow-500/30 transition-colors whitespace-nowrap disabled:opacity-50 text-sm"
-              >
-                {countdown > 0 ? `${countdown}s` : sendingCode ? '发送中...' : '获取验证码'}
-              </button>
-            </div>
-
             <input
               type="password"
               value={password}
@@ -229,19 +147,14 @@ export const Register = () => {
               minLength={6}
             />
 
-            <div>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="确认密码"
-                className={`w-full px-4 py-3.5 bg-white/10 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400 ${
-                  confirmError ? 'border-red-400' : 'border-white/20'
-                }`}
-                required
-              />
-              {confirmError && <p className="text-red-400 text-xs mt-1">{confirmError}</p>}
-            </div>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="确认密码"
+              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
+              required
+            />
 
             <input
               type="text"
