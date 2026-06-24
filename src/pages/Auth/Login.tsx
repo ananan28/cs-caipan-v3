@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 export const Login = () => {
   const navigate = useNavigate()
   const { login } = useAuthStore()
-  const [email, setEmail] = useState('admin@cs.com')
+  const [identifier, setIdentifier] = useState('admin@cs.com')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -18,6 +18,26 @@ export const Login = () => {
     e.preventDefault()
     setLoading(true)
 
+    // 判断是邮箱还是用户名
+    const isEmail = identifier.includes('@')
+    let email = identifier
+
+    // 如果是用户名，查找对应的邮箱
+    if (!isEmail) {
+      const { data: userData, error: findError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', identifier)
+        .single()
+
+      if (findError || !userData) {
+        toast.error('用户名不存在')
+        setLoading(false)
+        return
+      }
+      email = userData.email
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -26,17 +46,30 @@ export const Login = () => {
     setLoading(false)
 
     if (error) {
-      toast.error('登录失败: ' + error.message)
+      if (error.message === 'Invalid login credentials') {
+        toast.error('邮箱或密码错误，请重试')
+      } else if (error.message.includes('Email not confirmed')) {
+        toast.error('请先验证邮箱，查收邮件后点击验证链接')
+      } else {
+        toast.error('登录失败: ' + error.message)
+      }
       return
     }
 
     if (data.user) {
+      // 获取用户角色
+      const { data: userData } = await supabase
+        .from('users')
+        .select('role, username')
+        .eq('id', data.user.id)
+        .single()
+
       login({
         id: data.user.id,
-        name: data.user.email?.split('@')[0] || '用户',
+        name: userData?.username || data.user.email?.split('@')[0] || '用户',
         email: data.user.email || '',
         phone: '',
-        role: 'SuperAdmin',
+        role: userData?.role || 'User',
         status: 'Active',
         balance: 99999,
         points: 99999,
@@ -79,10 +112,10 @@ export const Login = () => {
             <div className="relative">
               <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-300/60" />
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="邮箱地址"
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="邮箱或用户名"
                 className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
                 required
               />
@@ -100,7 +133,7 @@ export const Login = () => {
               />
             </div>
 
-            <div className="text-right">
+            <div className="flex items-center justify-between">
               <Link to="/forgot-password" className="text-white/40 text-xs hover:text-yellow-400 transition-colors">
                 忘记密码？
               </Link>
