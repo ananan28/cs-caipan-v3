@@ -1,26 +1,28 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
-import { zh } from '@/locales/zh'
-import { en } from '@/locales/en'
-
-type Language = 'zh' | 'en'
-type Translation = typeof zh
+import zh from '@/locales/zh'
 
 interface LanguageContextType {
-  language: Language
-  t: Translation
-  setLanguage: (lang: Language) => void
+  t: (key: string) => string
+  locale: string
+  setLocale: (locale: string) => void
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined)
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguage] = useState<Language>('zh')
-  
-  const translations: Record<Language, Translation> = { zh, en }
-  const t = translations[language]
+  const [locale, setLocale] = useState('zh')
+
+  const t = (key: string) => {
+    const keys = key.split('.')
+    let value: any = zh
+    for (const k of keys) {
+      value = value?.[k]
+    }
+    return value || key
+  }
 
   return (
-    <LanguageContext.Provider value={{ language, t, setLanguage }}>
+    <LanguageContext.Provider value={{ t, locale, setLocale }}>
       {children}
     </LanguageContext.Provider>
   )
