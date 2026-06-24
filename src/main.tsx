@@ -3,16 +3,24 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/index.css'
 
-// 忽略特定控制台警告
+// 屏蔽控制台警告
 const originalConsoleWarn = console.warn
+const originalConsoleError = console.error
+
 console.warn = function(...args) {
-  if (typeof args[0] === 'string' && args[0].includes('Cookie')) {
-    return
-  }
-  if (typeof args[0] === 'string' && args[0].includes('_cf_bm')) {
+  const msg = args.join(' ')
+  if (msg.includes('Cookie') || msg.includes('_cf_bm')) {
     return
   }
   originalConsoleWarn.apply(console, args)
+}
+
+console.error = function(...args) {
+  const msg = args.join(' ')
+  if (msg.includes('Cookie') || msg.includes('_cf_bm') || msg.includes('cors')) {
+    return
+  }
+  originalConsoleError.apply(console, args)
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
