@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card } from '@/components/Common/Card'
 import { Button } from '@/components/Common/Button'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
-import { RefreshCw, Copy, CheckCircle, AlertCircle } from 'lucide-react'
+import { RefreshCw, Copy, CheckCircle, AlertCircle, QrCode } from 'lucide-react'
 import toast from 'react-hot-toast'
+import QRCode from 'qrcode'
 
 export const Recharge = () => {
   const { user } = useAuthStore()
@@ -15,6 +16,10 @@ export const Recharge = () => {
   const [rate, setRate] = useState(6.75)
   const [adminAddresses, setAdminAddresses] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null)
+  const [showQrModal, setShowQrModal] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState<any>(null)
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null)
 
   const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
 
@@ -52,12 +57,13 @@ export const Recharge = () => {
 
   // 加载订单
   const loadOrders = async () => {
+    if (!user) return
     setLoading(true)
     try {
       const { data, error } = await supabase
         .from('recharge_orders')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -85,6 +91,11 @@ export const Recharge = () => {
     return ''
   }
 
+  // 生成随机尾数（0.01 - 0.99）
+  const generateRandomTail = () => {
+    return Math.round((Math.random() * 98 + 1)) / 100
+  }
+
   // 创建充值订单
   const handleCreateOrder = async () => {
     const amount = parseFloat(usdtAmount)
@@ -105,14 +116,19 @@ export const Recharge = () => {
 
     setSubmitting(true)
     try {
+      // 生成随机尾数
+      const tail = generateRandomTail()
+      const finalAmount = amount + tail
+      const pointsAmount = finalAmount * rate
+
       const { data, error } = await supabase
         .from('recharge_orders')
         .insert({
           user_id: user?.id,
-          amount: amount,
-          usdt_amount: amount,
+          amount: finalAmount,
+          usdt_amount: finalAmount,
           rate: rate,
-          points: amount * rate,
+          points: pointsAmount,
           address: address,
           remark: remark || null,
           status: 'pending',
@@ -120,17 +136,34 @@ export const Recharge = () => {
         })
         .select()
         .single()
+
       if (error) {
         toast.error('创建订单失败: ' + error.message)
       } else {
-        toast.success('✅ 充值订单已创建，请转账到以下地址')
+        setCurrentOrder(data)
+        setQrCodeDataUrl(null)
+        
+        // 生成二维码
+        const qrData = `usdt:${address}?amount=${finalAmount.toFixed(2)}`
+        try {
+          const qrUrl = await QRCode.toDataURL(qrData, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#ffffff'
+            }
+          })
+          setQrCodeDataUrl(qrUrl)
+        } catch (qrError) {
+          console.error('二维码生成失败:', qrError)
+        }
+        
+        setShowQrModal(true)
+        toast.success(`✅ 订单已创建，请扫码支付 ${finalAmount.toFixed(2)} USDT`)
         setUsdtAmount('')
         setRemark('')
         loadOrders()
-        // 显示收款地址
-        setTimeout(() => {
-          toast.success('收款地址: ' + address)
-        }, 500)
       }
     } catch (error: any) {
       toast.error('创建订单失败: ' + error.message)
@@ -142,6 +175,12 @@ export const Recharge = () => {
   const copyAddress = (address: string) => {
     navigator.clipboard.writeText(address)
     toast.success('已复制收款地址')
+  }
+
+  // 复制金额
+  const copyAmount = (amount: number) => {
+    navigator.clipboard.writeText(amount.toFixed(2))
+    toast.success('已复制金额')
   }
 
   // 管理员确认到账
@@ -201,6 +240,9 @@ export const Recharge = () => {
               <div className="text-sm text-gray-400 mt-1">
                 当前汇率：1 USDT = {rate} 积分
               </div>
+              <div className="text-xs text-yellow-400 mt-1">
+                ⚡ 订单金额将自动添加随机尾数（0.01-0.99），用于对账验证
+              </div>
             </div>
 
             <div>
@@ -231,30 +273,13 @@ export const Recharge = () => {
               />
             </div>
 
-            <Button
+            <button
               onClick={handleCreateOrder}
               disabled={submitting}
               className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
             >
               {submitting ? '创建中...' : '生成支付地址'}
-            </Button>
-
-            {adminAddresses.length > 0 && (
-              <div className="mt-4 p-3 bg-gray-700/30 rounded-lg">
-                <p className="text-xs text-gray-400 mb-1">收款地址</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-white font-mono truncate flex-1">
-                    {getPaymentAddress()}
-                  </p>
-                  <button
-                    onClick={() => copyAddress(getPaymentAddress())}
-                    className="p-1 hover:bg-gray-600 rounded transition"
-                  >
-                    <Copy className="w-4 h-4 text-gray-400" />
-                  </button>
-                </div>
-              </div>
-            )}
+            </button>
           </div>
         </Card>
 
@@ -292,18 +317,20 @@ export const Recharge = () => {
                     <p className="text-xs text-gray-400">
                       {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </p>
+                    {order.amount && (
+                      <p className="text-xs text-yellow-400">
+                        金额: {order.amount.toFixed(2)} USDT
+                      </p>
+                    )}
                   </div>
                   <div className="text-right">
-                    <p className="text-yellow-400 font-medium">
-                      ${order.amount}
-                    </p>
                     <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-500/20 text-gray-400'}`}>
                       {statusLabels[order.status] || order.status || '未知'}
                     </span>
                     {isAdmin && order.status === 'paid' && (
                       <button
                         onClick={() => handleConfirmPayment(order.id)}
-                        className="ml-2 text-xs text-green-400 hover:text-green-300 transition"
+                        className="block mt-1 text-xs text-green-400 hover:text-green-300 transition"
                       >
                         <CheckCircle className="w-3 h-3 inline" />
                         确认到账
@@ -316,6 +343,66 @@ export const Recharge = () => {
           )}
         </Card>
       </div>
+
+      {/* 二维码弹窗 */}
+      {showQrModal && currentOrder && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <h2 className="text-xl font-bold text-white mb-4 text-center">扫码支付</h2>
+            
+            {qrCodeDataUrl ? (
+              <div className="flex flex-col items-center">
+                <img 
+                  src={qrCodeDataUrl} 
+                  alt="USDT支付二维码" 
+                  className="w-64 h-64 bg-white rounded-lg p-4"
+                />
+                <div className="mt-4 text-center w-full">
+                  <p className="text-gray-300 text-sm">收款地址</p>
+                  <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-2 mt-1">
+                    <p className="text-white text-xs font-mono truncate flex-1">
+                      {currentOrder.address}
+                    </p>
+                    <button
+                      onClick={() => copyAddress(currentOrder.address)}
+                      className="p-1 hover:bg-gray-700 rounded transition"
+                    >
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-3 text-center w-full">
+                  <p className="text-gray-300 text-sm">支付金额</p>
+                  <div className="flex items-center justify-center gap-2 mt-1">
+                    <p className="text-2xl font-bold text-yellow-400">
+                      {currentOrder.amount?.toFixed(2)} USDT
+                    </p>
+                    <button
+                      onClick={() => copyAmount(currentOrder.amount)}
+                      className="p-1 hover:bg-gray-700 rounded transition"
+                    >
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    ⚡ 请转账精确金额，含随机尾数
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowQrModal(false)}
+                  className="mt-4 px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+                >
+                  关闭
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-400">二维码生成中...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
