@@ -1,199 +1,245 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../../lib/supabase'
-import { Loader } from 'lucide-react'
-import { Captcha } from '../../components/Common/Captcha'
-import toast from 'react-hot-toast'
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { supabase } from '@/lib/supabase'
+import { Button } from '@/components/Common/Button'
+import { Input } from '@/components/Forms/Input'
+import { toast } from 'react-hot-toast'
 
 export const Register = () => {
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [inviteCode, setInviteCode] = useState('')
-  const [captchaValid, setCaptchaValid] = useState(false)
-  const [agreeTerms, setAgreeTerms] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    inviteCode: '',
+    verificationCode: ''
+  })
+  const [codeSent, setCodeSent] = useState(false)
+  const [countdown, setCountdown] = useState(0)
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('ref')
-    if (ref) setInviteCode(ref)
-  }, [])
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+  }
 
-  const handleRegister = async (e: React.FormEvent) => {
+  // 发送验证码
+  const sendVerificationCode = async () => {
+    if (!form.email) {
+      toast.error('请先输入邮箱')
+      return
+    }
+
+    setLoading(true)
+    try {
+      // 检查邮箱是否已注册
+      const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', form.email)
+        .maybeSingle()
+
+      if (existing) {
+        toast.error('该邮箱已注册，请直接登录')
+        setLoading(false)
+        return
+      }
+
+      // 发送验证码（使用 Supabase 内置 OTP）
+      const { error } = await supabase.auth.signInWithOtp({
+        email: form.email,
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: window.location.origin + '/register'
+        }
+      })
+
+      if (error) {
+        toast.error('验证码发送失败: ' + error.message)
+      } else {
+        setCodeSent(true)
+        toast.success('验证码已发送到您的邮箱')
+        let time = 60
+        setCountdown(time)
+        const timer = setInterval(() => {
+          time--
+          setCountdown(time)
+          if (time <= 0) clearInterval(timer)
+        }, 1000)
+      }
+    } catch (error: any) {
+      toast.error('发送失败: ' + error.message)
+    }
+    setLoading(false)
+  }
+
+  // 注册提交
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!agreeTerms) {
-      toast.error('请同意服务条款')
+
+    if (!form.email || !form.password || !form.username) {
+      toast.error('请填写完整信息')
       return
     }
 
-    if (!captchaValid) {
-      toast.error('请完成验证码验证')
-      return
-    }
-
-    if (password.length < 6) {
+    if (form.password.length < 6) {
       toast.error('密码至少6位')
       return
     }
 
-    if (password !== confirmPassword) {
-      toast.error('两次密码不一致')
+    if (form.password !== form.confirmPassword) {
+      toast.error('两次密码输入不一致')
+      return
+    }
+
+    if (!form.verificationCode) {
+      toast.error('请输入邮箱验证码')
       return
     }
 
     setLoading(true)
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username },
-        emailRedirectTo: window.location.origin + '/login'
+    try {
+      // 验证验证码
+      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+        email: form.email,
+        token: form.verificationCode,
+        type: 'email'
+      })
+
+      if (verifyError) {
+        toast.error('验证码错误或已过期: ' + verifyError.message)
+        setLoading(false)
+        return
       }
-    })
 
-    if (authError) {
-      toast.error('注册失败: ' + authError.message)
-      setLoading(false)
-      return
-    }
-
-    if (authData.user) {
-      await supabase
-        .from('users')
-        .insert({
-          id: authData.user.id,
-          email: email,
-          username: username,
-          role: 'User',
-          status: 'active'
-        })
-
-      if (inviteCode) {
-        const { data: inviter } = await supabase
-          .from('users')
-          .select('id')
-          .eq('id', inviteCode)
-          .maybeSingle()
-
-        if (inviter) {
-          await supabase
-            .from('invites')
-            .insert({
-              inviter_id: inviter.id,
-              invitee_id: authData.user.id,
-              invitee_email: email,
-              level: 1,
-              reward: 0,
-              status: 'pending'
-            })
+      // 注册用户
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            username: form.username,
+            invite_code: form.inviteCode || null
+          }
         }
+      })
+
+      if (error) {
+        toast.error('注册失败: ' + error.message)
+      } else {
+        toast.success('注册成功！请登录')
+        navigate('/login')
       }
-
-      toast.success('✅ 注册成功！请查收验证邮件后登录')
-      navigate('/login')
+    } catch (error: any) {
+      toast.error('注册失败: ' + error.message)
     }
-
     setLoading(false)
   }
 
-  const wallpaper = 'https://fuqhvyqxibepmbauohmh.supabase.co/storage/v1/object/public/wallpapers/messageImage_1781061135170.jpg'
-
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${wallpaper})` }} />
-      <div className="absolute inset-0 bg-black/50" />
-
-      <div className="relative z-10 w-full max-w-md">
-        <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl shadow-black/30">
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 rounded-full bg-black border-2 border-yellow-400 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-yellow-500/20">
-              <span className="text-3xl font-bold text-yellow-400">財</span>
-            </div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">注册账号</h1>
-            <p className="text-blue-200/80 text-sm mt-1">加入财盛集团</p>
-          </div>
-
-          <form onSubmit={handleRegister} className="space-y-4">
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="用户名"
-              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-              required
-            />
-
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="邮箱地址"
-              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-              required
-            />
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="密码（至少6位）"
-              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-              required
-              minLength={6}
-            />
-
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="确认密码"
-              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-              required
-            />
-
-            <input
-              type="text"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              placeholder="邀请码（选填）"
-              className="w-full px-4 py-3.5 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-            />
-
-            <Captcha onVerify={setCaptchaValid} />
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={agreeTerms}
-                onChange={(e) => setAgreeTerms(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 bg-white/10 text-yellow-400"
-                required
-              />
-              <span className="text-white/60 text-xs">
-                我同意 <Link to="/terms" className="text-yellow-400 hover:underline">服务条款</Link>
-              </span>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-4 rounded-xl bg-gradient-to-r from-yellow-400 to-yellow-500 text-white font-bold text-lg hover:scale-[1.02] transition-all disabled:opacity-50"
-            >
-              {loading ? <Loader size={24} className="animate-spin mx-auto" /> : '注册'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-white/40 text-sm">
-              已有账号？ <Link to="/login" className="text-yellow-400 hover:underline">立即登录</Link>
-            </p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+      <div className="bg-gray-800/50 rounded-xl p-8 w-full max-w-md border border-gray-700/50">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-yellow-400">财盛集团</h1>
+          <p className="text-gray-400 mt-1">创建新账号</p>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">用户名 *</label>
+            <Input
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              placeholder="请输入用户名"
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">邮箱 *</label>
+            <div className="flex gap-2">
+              <Input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                placeholder="请输入邮箱"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                onClick={sendVerificationCode}
+                disabled={loading || countdown > 0}
+                className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg whitespace-nowrap disabled:opacity-50"
+              >
+                {countdown > 0 ? `${countdown}s` : '获取验证码'}
+              </Button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">邮箱验证码 *</label>
+            <Input
+              name="verificationCode"
+              value={form.verificationCode}
+              onChange={handleChange}
+              placeholder="请输入6位验证码"
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">密码 *</label>
+            <Input
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="至少6位密码"
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">确认密码 *</label>
+            <Input
+              name="confirmPassword"
+              type="password"
+              value={form.confirmPassword}
+              onChange={handleChange}
+              placeholder="再次输入密码"
+              className="w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-300 mb-1">邀请码（选填）</label>
+            <Input
+              name="inviteCode"
+              value={form.inviteCode}
+              onChange={handleChange}
+              placeholder="请输入邀请码"
+              className="w-full"
+            />
+          </div>
+
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
+          >
+            {loading ? '注册中...' : '立即注册'}
+          </Button>
+        </form>
+
+        <p className="text-center text-gray-400 text-sm mt-4">
+          已有账号？{' '}
+          <Link to="/login" className="text-yellow-400 hover:underline">
+            立即登录
+          </Link>
+        </p>
       </div>
     </div>
   )
