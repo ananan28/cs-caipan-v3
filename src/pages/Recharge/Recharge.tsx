@@ -106,10 +106,14 @@ export const Recharge = () => {
     setSubmitting(true)
     try {
       const { data, error } = await supabase
+      const { data, error } = await supabase
         .from('recharge_orders')
         .insert({
           user_id: user?.id,
           amount: amount,
+          usdt_amount: amount,
+          rate: rate,
+          points: amount * rate,
           address: address,
           remark: remark || null,
           status: 'pending',
@@ -117,7 +121,6 @@ export const Recharge = () => {
         })
         .select()
         .single()
-
       if (error) {
         toast.error('创建订单失败: ' + error.message)
       } else {
