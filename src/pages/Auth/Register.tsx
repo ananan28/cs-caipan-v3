@@ -18,14 +18,20 @@ export const Register = () => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    e.stopPropagation()
 
     const email = form.email.trim()
     const username = form.username.trim()
 
     if (!email || !username || !form.password) {
       toast.error('请填写完整信息')
+      return
+    }
+
+    if (!email.includes('@') || !email.includes('.')) {
+      toast.error('请输入有效的邮箱地址')
       return
     }
 
@@ -42,7 +48,6 @@ export const Register = () => {
     setLoading(true)
 
     try {
-      // 直接注册，Supabase 会自动发送验证邮件
       const { data, error } = await supabase.auth.signUp({
         email: email,
         password: form.password,
@@ -57,17 +62,30 @@ export const Register = () => {
 
       if (error) {
         toast.error('注册失败: ' + error.message)
-      } else if (data.user) {
-        toast.success('注册成功！请查看邮箱点击验证链接完成注册')
-        // 清空表单
-        setForm({ email: '', username: '', password: '', confirmPassword: '', inviteCode: '' })
-        // 跳转到登录页
-        setTimeout(() => navigate('/login'), 3000)
+        setLoading(false)
+        return
+      }
+
+      if (data?.user) {
+        toast.success('✅ 注册成功！请查看邮箱点击验证链接')
+        setForm({
+          email: '',
+          username: '',
+          password: '',
+          confirmPassword: '',
+          inviteCode: ''
+        })
+        setTimeout(() => {
+          navigate('/login')
+        }, 3000)
+      } else {
+        toast.error('注册失败，请稍后重试')
       }
     } catch (error: any) {
-      toast.error('注册失败: ' + error.message)
+      toast.error('注册失败: ' + (error.message || '未知错误'))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
@@ -87,6 +105,7 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="请输入用户名"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              disabled={loading}
             />
           </div>
 
@@ -99,6 +118,7 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="请输入邮箱"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              disabled={loading}
             />
             <p className="text-xs text-gray-500 mt-1">注册后请查看邮箱点击验证链接激活账号</p>
           </div>
@@ -112,6 +132,7 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="至少6位密码"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              disabled={loading}
             />
           </div>
 
@@ -124,6 +145,7 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="再次输入密码"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              disabled={loading}
             />
           </div>
 
@@ -135,15 +157,26 @@ export const Register = () => {
               onChange={handleChange}
               placeholder="请输入邀请码"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+              disabled={loading}
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
+            className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? '注册中...' : '立即注册'}
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                注册中...
+              </span>
+            ) : (
+              '立即注册'
+            )}
           </button>
         </form>
 
