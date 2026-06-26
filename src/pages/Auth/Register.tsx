@@ -18,21 +18,18 @@ export const Register = () => {
   })
   const [codeSent, setCodeSent] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [registeredEmail, setRegisteredEmail] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  // 发送验证码
   const sendVerificationCode = async () => {
-    // 清理邮箱（去除空格）
     const email = form.email.trim()
     if (!email) {
       toast.error('请先输入邮箱')
       return
     }
-
-    // 简单邮箱格式验证
     if (!email.includes('@') || !email.includes('.')) {
       toast.error('请输入有效的邮箱地址')
       return
@@ -40,7 +37,6 @@ export const Register = () => {
 
     setLoading(true)
     try {
-      // 检查邮箱是否已注册
       const { data: existing } = await supabase
         .from('users')
         .select('id')
@@ -53,11 +49,11 @@ export const Register = () => {
         return
       }
 
-      // 使用 Supabase 的 OTP 发送验证码
-      const { error } = await supabase.auth.signInWithOtp({
+      // 使用 signUp 发送验证码
+      const { data, error } = await supabase.auth.signUp({
         email: email,
+        password: 'TempPass123!',
         options: {
-          shouldCreateUser: false,
           emailRedirectTo: window.location.origin + '/login'
         }
       })
@@ -67,7 +63,8 @@ export const Register = () => {
         toast.error('验证码发送失败: ' + error.message)
       } else {
         setCodeSent(true)
-        toast.success('验证码已发送到您的邮箱，请检查垃圾邮件箱')
+        setRegisteredEmail(email)
+        toast.success('验证码已发送到您的邮箱')
         let time = 60
         setCountdown(time)
         const timer = setInterval(() => {
@@ -77,16 +74,13 @@ export const Register = () => {
         }, 1000)
       }
     } catch (error: any) {
-      console.error('发送失败:', error)
-      toast.error('发送失败: ' + (error.message || '未知错误'))
+      toast.error('发送失败: ' + error.message)
     }
     setLoading(false)
   }
 
-  // 注册提交
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-
     const email = form.email.trim()
     const username = form.username.trim()
 
@@ -94,39 +88,17 @@ export const Register = () => {
       toast.error('请填写完整信息')
       return
     }
-
     if (form.password.length < 6) {
       toast.error('密码至少6位')
       return
     }
-
     if (form.password !== form.confirmPassword) {
       toast.error('两次密码输入不一致')
       return
     }
 
-    if (!form.verificationCode) {
-      toast.error('请输入邮箱验证码')
-      return
-    }
-
     setLoading(true)
-
     try {
-      // 验证验证码
-      const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        email: email,
-        token: form.verificationCode,
-        type: 'email'
-      })
-
-      if (verifyError) {
-        toast.error('验证码错误或已过期: ' + verifyError.message)
-        setLoading(false)
-        return
-      }
-
-      // 注册用户
       const { data, error } = await supabase.auth.signUp({
         email: email,
         password: form.password,
@@ -141,7 +113,7 @@ export const Register = () => {
       if (error) {
         toast.error('注册失败: ' + error.message)
       } else {
-        toast.success('注册成功！请登录')
+        toast.success('注册成功！请查看邮箱验证并登录')
         navigate('/login')
       }
     } catch (error: any) {
