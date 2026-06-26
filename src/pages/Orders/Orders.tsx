@@ -4,7 +4,7 @@ import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
-import { Search, RefreshCw, CheckCircle, XCircle, Clock, Download, Filter } from 'lucide-react'
+import { Search, RefreshCw, CheckCircle, XCircle, ShoppingCart } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export const Orders = () => {
@@ -38,9 +38,9 @@ export const Orders = () => {
         setOrders(data || [])
         setStats({
           total: data?.length || 0,
-          pending: data?.filter(o => o.status === 'pending').length || 0,
-          completed: data?.filter(o => o.status === 'completed').length || 0,
-          paid: data?.filter(o => o.status === 'paid').length || 0
+          pending: data?.filter((o: any) => o.status === 'pending').length || 0,
+          completed: data?.filter((o: any) => o.status === 'completed').length || 0,
+          paid: data?.filter((o: any) => o.status === 'paid').length || 0
         })
       }
     } catch (error: any) {
@@ -88,8 +88,8 @@ export const Orders = () => {
     expired: '已过期'
   }
 
-  const filtered = orders.filter(o => {
-    const matchSearch = o.order_number?.includes(search) || o.id?.includes(search)
+  const filtered = orders.filter((o: any) => {
+    const matchSearch = o.id?.includes(search) || o.order_number?.includes(search)
     const matchStatus = filterStatus ? o.status === filterStatus : true
     return matchSearch && matchStatus
   })
@@ -109,33 +109,34 @@ export const Orders = () => {
           <ShoppingCart className="w-6 h-6 text-yellow-400" />
           订单中心
         </h1>
-        <Button onClick={loadOrders} className="bg-gray-700 hover:bg-gray-600 text-white">
-          <RefreshCw className="w-4 h-4 mr-1" />
+        <button
+          onClick={loadOrders}
+          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2 transition"
+        >
+          <RefreshCw className="w-4 h-4" />
           刷新
-        </Button>
+        </button>
       </div>
 
-      {/* 统计卡片 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <Card className="bg-gray-800/50 border-gray-700 p-4 text-center">
+        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-white">{stats.total}</p>
           <p className="text-xs text-gray-400">总订单</p>
-        </Card>
-        <Card className="bg-gray-800/50 border-gray-700 p-4 text-center">
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
           <p className="text-xs text-gray-400">待支付</p>
-        </Card>
-        <Card className="bg-gray-800/50 border-gray-700 p-4 text-center">
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-blue-400">{stats.paid}</p>
           <p className="text-xs text-gray-400">已支付-待审核</p>
-        </Card>
-        <Card className="bg-gray-800/50 border-gray-700 p-4 text-center">
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
           <p className="text-xs text-gray-400">已完成</p>
-        </Card>
+        </div>
       </div>
 
-      {/* 搜索和筛选 */}
       <div className="flex flex-wrap items-center gap-3 mb-4 bg-gray-800/30 rounded-lg p-3">
         <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg px-3 py-1.5 flex-1 min-w-[200px]">
           <Search className="w-4 h-4 text-gray-400" />
@@ -159,13 +160,15 @@ export const Orders = () => {
           <option value="cancelled">已取消</option>
           <option value="expired">已过期</option>
         </select>
-        <Button onClick={loadOrders} className="bg-gray-700 hover:bg-gray-600 text-white">
-          <RefreshCw className="w-4 h-4 mr-1" />
+        <button
+          onClick={loadOrders}
+          className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition"
+        >
+          <RefreshCw className="w-4 h-4 inline mr-1" />
           刷新
-        </Button>
+        </button>
       </div>
 
-      {/* 订单列表 */}
       <div className="bg-gray-800/30 rounded-lg overflow-hidden border border-gray-700/50">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -184,7 +187,7 @@ export const Orders = () => {
                   <td colSpan={5} className="text-center py-8 text-gray-400">暂无订单</td>
                 </tr>
               ) : (
-                filtered.map((order) => {
+                filtered.map((order: any) => {
                   const color = statusColors[order.status] || 'default'
                   const label = statusLabels[order.status] || order.status || '未知'
                   return (
@@ -192,31 +195,31 @@ export const Orders = () => {
                       <td className="px-4 py-2 text-white font-mono text-xs">{order.id?.slice(0, 8)}</td>
                       <td className="px-4 py-2 text-yellow-400">${order.amount}</td>
                       <td className="px-4 py-2">
-                        <Badge variant={color as any}>{label}</Badge>
+                        <span className={`px-2 py-1 rounded-full text-xs bg-gray-700/50 text-gray-300`}>
+                          {label}
+                        </span>
                       </td>
                       <td className="px-4 py-2 text-gray-400 text-xs">
                         {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                       </td>
                       <td className="px-4 py-2 text-center">
                         {isAdmin && order.status === 'paid' && (
-                          <Button
-                            size="sm"
-                            className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                          <button
+                            className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition"
                             onClick={() => handleUpdateStatus(order.id, 'completed')}
                           >
-                            <CheckCircle className="w-3 h-3 mr-1" />
+                            <CheckCircle className="w-3 h-3 inline mr-1" />
                             确认到账
-                          </Button>
+                          </button>
                         )}
                         {isAdmin && order.status === 'pending' && (
-                          <Button
-                            size="sm"
-                            className="bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                          <button
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30 transition"
                             onClick={() => handleUpdateStatus(order.id, 'cancelled')}
                           >
-                            <XCircle className="w-3 h-3 mr-1" />
+                            <XCircle className="w-3 h-3 inline mr-1" />
                             取消
-                          </Button>
+                          </button>
                         )}
                       </td>
                     </tr>
