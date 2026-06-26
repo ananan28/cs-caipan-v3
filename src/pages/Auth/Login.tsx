@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
-import { Button } from '@/components/Common/Button'
-import { Input } from '@/components/Forms/Input'
 import toast from 'react-hot-toast'
 
 export const Login = () => {
@@ -37,7 +35,6 @@ export const Login = () => {
       }
 
       if (data.user) {
-        // 从 user_metadata 获取角色
         const metadata = data.user.user_metadata || {}
         const userData = {
           id: data.user.id,
@@ -46,11 +43,25 @@ export const Login = () => {
           role: metadata.role || 'User'
         }
 
+        // 同步用户到 users 表
+        const { error: upsertError } = await supabase
+          .from('users')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email,
+            username: metadata.name || data.user.email?.split('@')[0] || '',
+            role: metadata.role || 'User',
+            status: 'Active',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'id' })
+
+        if (upsertError) {
+          console.error('同步用户失败:', upsertError)
+        }
+
         login(userData, data.session?.access_token || '')
-
-        // 刷新用户信息确保同步
         await refreshUser()
-
         toast.success('登录成功')
         navigate('/dashboard')
       }
@@ -71,35 +82,35 @@ export const Login = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-300 mb-1">邮箱</label>
-            <Input
+            <input
               name="email"
               type="email"
               value={form.email}
               onChange={handleChange}
               placeholder="请输入邮箱"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">密码</label>
-            <Input
+            <input
               name="password"
               type="password"
               value={form.password}
               onChange={handleChange}
               placeholder="请输入密码"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
           >
             {loading ? '登录中...' : '登录'}
-          </Button>
+          </button>
         </form>
 
         <p className="text-center text-gray-400 text-sm mt-4">
