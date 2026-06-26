@@ -136,27 +136,27 @@ export const Finance = () => {
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-white">{stats.total}</p>
-          <p className="text-xs text-gray-400">全部</p>
+          <p className="text-sm text-gray-400">全部</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
-          <p className="text-xs text-gray-400">待支付</p>
+          <p className="text-sm text-gray-400">待支付</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-blue-400">{stats.paid}</p>
-          <p className="text-xs text-gray-400">待审核</p>
+          <p className="text-sm text-gray-400">待审核</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
-          <p className="text-xs text-gray-400">已完成</p>
+          <p className="text-sm text-gray-400">已完成</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-gray-400">{stats.cancelled}</p>
-          <p className="text-xs text-gray-400">已取消</p>
+          <p className="text-sm text-gray-400">已取消</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-red-400">{stats.expired}</p>
-          <p className="text-xs text-gray-400">已过期</p>
+          <p className="text-sm text-gray-400">已过期</p>
         </div>
       </div>
 
@@ -180,13 +180,13 @@ export const Finance = () => {
           <table className="w-full text-sm">
             <thead className="bg-gray-700/50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">订单号</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">用户</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">金额</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">积分</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">创建时间</th>
-                <th className="px-4 py-2 text-center text-xs font-medium text-gray-400 uppercase">操作</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">订单号</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">用户</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">金额</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">积分</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">状态</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-400 uppercase">创建时间</th>
+                <th className="px-4 py-2 text-center text-sm font-medium text-gray-400 uppercase">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -197,16 +197,16 @@ export const Finance = () => {
               ) : (
                 orders.map((order) => (
                   <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
-                    <td className="px-4 py-2 text-white font-mono text-xs">{order.id?.slice(0, 8)}</td>
-                    <td className="px-4 py-2 text-gray-300 text-xs">{order.user_id?.slice(0, 8)}</td>
+                    <td className="px-4 py-2 text-white font-mono text-sm">{order.id?.slice(0, 8)}</td>
+                    <td className="px-4 py-2 text-gray-300 text-sm">{order.user_id?.slice(0, 8)}</td>
                     <td className="px-4 py-2 text-yellow-400">${order.amount?.toFixed(2)}</td>
                     <td className="px-4 py-2 text-white">{order.points?.toFixed(2)}</td>
                     <td className="px-4 py-2">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-500/20 text-gray-400'}`}>
+                      <span className={`text-sm px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-500/20 text-gray-400'}`}>
                         {statusLabels[order.status] || order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 text-gray-400 text-xs">
+                    <td className="px-4 py-2 text-gray-400 text-sm">
                       {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </td>
                     <td className="px-4 py-2 text-center">
@@ -214,7 +214,7 @@ export const Finance = () => {
                         {order.status === 'paid' && (
                           <button
                             onClick={() => handleConfirm(order.id)}
-                            className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition flex items-center gap-1"
+                            className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-sm hover:bg-green-500/30 transition flex items-center gap-1"
                           >
                             <CheckCircle className="w-3 h-3" />
                             确认到账
@@ -223,7 +223,7 @@ export const Finance = () => {
                         {(order.status === 'pending' || order.status === 'paid') && (
                           <button
                             onClick={() => handleCancel(order.id)}
-                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30 transition flex items-center gap-1"
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-sm hover:bg-red-500/30 transition flex items-center gap-1"
                           >
                             <XCircle className="w-3 h-3" />
                             取消
