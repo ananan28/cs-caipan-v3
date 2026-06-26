@@ -8,7 +8,7 @@ import { ForgotPassword } from './pages/Auth/ForgotPassword'
 import { ResetPassword } from './pages/Auth/ResetPassword'
 import { Dashboard } from './pages/Dashboard/Dashboard'
 import { Users } from './pages/Users/Users'
-import { Wallet } from './pages/Wallet/Wallet'
+import { WalletPage } from './pages/Wallet/Wallet'
 import { Finance } from './pages/Finance/Finance'
 import { Tasks } from './pages/Tasks/Tasks'
 import { Tickets } from './pages/Tickets/Tickets'
@@ -64,7 +64,7 @@ function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="users" element={<Users />} />
-                <Route path="wallet" element={<Wallet />} />
+                <Route path="wallet" element={<WalletPage />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="transactions" element={<Transactions />} />
                 <Route path="orders" element={<Orders />} />
