@@ -25,8 +25,16 @@ export const Register = () => {
 
   // 发送验证码
   const sendVerificationCode = async () => {
-    if (!form.email) {
+    // 清理邮箱（去除空格）
+    const email = form.email.trim()
+    if (!email) {
       toast.error('请先输入邮箱')
+      return
+    }
+
+    // 简单邮箱格式验证
+    if (!email.includes('@') || !email.includes('.')) {
+      toast.error('请输入有效的邮箱地址')
       return
     }
 
@@ -36,7 +44,7 @@ export const Register = () => {
       const { data: existing } = await supabase
         .from('users')
         .select('id')
-        .eq('email', form.email)
+        .eq('email', email)
         .maybeSingle()
 
       if (existing) {
@@ -45,20 +53,21 @@ export const Register = () => {
         return
       }
 
-      // 发送验证码（使用 Supabase 内置 OTP）
+      // 使用 Supabase 的 OTP 发送验证码
       const { error } = await supabase.auth.signInWithOtp({
-        email: form.email,
+        email: email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: window.location.origin + '/register'
+          emailRedirectTo: window.location.origin + '/login'
         }
       })
 
       if (error) {
+        console.error('发送验证码错误:', error)
         toast.error('验证码发送失败: ' + error.message)
       } else {
         setCodeSent(true)
-        toast.success('验证码已发送到您的邮箱')
+        toast.success('验证码已发送到您的邮箱，请检查垃圾邮件箱')
         let time = 60
         setCountdown(time)
         const timer = setInterval(() => {
@@ -68,7 +77,8 @@ export const Register = () => {
         }, 1000)
       }
     } catch (error: any) {
-      toast.error('发送失败: ' + error.message)
+      console.error('发送失败:', error)
+      toast.error('发送失败: ' + (error.message || '未知错误'))
     }
     setLoading(false)
   }
@@ -77,7 +87,10 @@ export const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!form.email || !form.password || !form.username) {
+    const email = form.email.trim()
+    const username = form.username.trim()
+
+    if (!email || !username || !form.password) {
       toast.error('请填写完整信息')
       return
     }
@@ -102,7 +115,7 @@ export const Register = () => {
     try {
       // 验证验证码
       const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
-        email: form.email,
+        email: email,
         token: form.verificationCode,
         type: 'email'
       })
@@ -115,11 +128,11 @@ export const Register = () => {
 
       // 注册用户
       const { data, error } = await supabase.auth.signUp({
-        email: form.email,
+        email: email,
         password: form.password,
         options: {
           data: {
-            username: form.username,
+            username: username,
             invite_code: form.inviteCode || null
           }
         }
@@ -148,90 +161,90 @@ export const Register = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-300 mb-1">用户名 *</label>
-            <Input
+            <input
               name="username"
               value={form.username}
               onChange={handleChange}
               placeholder="请输入用户名"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">邮箱 *</label>
             <div className="flex gap-2">
-              <Input
+              <input
                 name="email"
                 type="email"
                 value={form.email}
                 onChange={handleChange}
                 placeholder="请输入邮箱"
-                className="flex-1"
+                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
               />
-              <Button
+              <button
                 type="button"
                 onClick={sendVerificationCode}
                 disabled={loading || countdown > 0}
                 className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg whitespace-nowrap disabled:opacity-50"
               >
                 {countdown > 0 ? `${countdown}s` : '获取验证码'}
-              </Button>
+              </button>
             </div>
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">邮箱验证码 *</label>
-            <Input
+            <input
               name="verificationCode"
               value={form.verificationCode}
               onChange={handleChange}
               placeholder="请输入6位验证码"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">密码 *</label>
-            <Input
+            <input
               name="password"
               type="password"
               value={form.password}
               onChange={handleChange}
               placeholder="至少6位密码"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">确认密码 *</label>
-            <Input
+            <input
               name="confirmPassword"
               type="password"
               value={form.confirmPassword}
               onChange={handleChange}
               placeholder="再次输入密码"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
           <div>
             <label className="block text-sm text-gray-300 mb-1">邀请码（选填）</label>
-            <Input
+            <input
               name="inviteCode"
               value={form.inviteCode}
               onChange={handleChange}
               placeholder="请输入邀请码"
-              className="w-full"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
             />
           </div>
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
             className="w-full py-3 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50"
           >
             {loading ? '注册中...' : '立即注册'}
-          </Button>
+          </button>
         </form>
 
         <p className="text-center text-gray-400 text-sm mt-4">
