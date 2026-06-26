@@ -1,141 +1,98 @@
 import { useState, useEffect } from 'react'
 import { Card } from '@/components/Common/Card'
-import { Badge } from '@/components/Common/Badge'
 import { Button } from '@/components/Common/Button'
-import { Input } from '@/components/Forms/Input'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/authStore'
-import {
-  TrendingUp, TrendingDown, DollarSign, Calendar, Search,
-  RefreshCw, Download, Filter, CheckCircle, XCircle, Clock
-} from 'lucide-react'
+import { RefreshCw, CheckCircle, XCircle, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export const Finance = () => {
   const { user } = useAuthStore()
-  const [records, setRecords] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [stats, setStats] = useState({
-    totalIncome: 0,
-    totalExpense: 0,
-    pendingAmount: 0,
-    netProfit: 0
-  })
+  const [filter, setFilter] = useState('all')
+  const [stats, setStats] = useState({ total: 0, pending: 0, paid: 0, completed: 0, cancelled: 0, expired: 0 })
 
   const isAdmin = user?.role === 'SuperAdmin' || user?.role === 'Admin'
 
-  const loadFinance = async () => {
+  const loadOrders = async () => {
     setLoading(true)
+    try {
+      let query = supabase
+        .from('recharge_orders')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    // 管理员看所有，用户看自己的
-    let query = supabase
-      .from('recharge_orders')
-      .select('*')
-      .order('created_at', { ascending: false })
+      if (filter !== 'all') {
+        query = query.eq('status', filter)
+      }
 
-    if (!isAdmin) {
-      query = query.eq('user_id', user?.id)
-    }
+      const { data, error } = await query
 
-    const { data, error } = await query
-
-    if (error) {
-      toast.error('加载数据失败: ' + error.message)
-    } else {
-      setRecords(data || [])
-      const income = data?.filter(t => t.status === 'completed')
-        .reduce((sum, t) => sum + t.amount, 0) || 0
-      const pending = data?.filter(t => t.status === 'pending' || t.status === 'paid')
-        .reduce((sum, t) => sum + t.amount, 0) || 0
-
-      setStats({
-        totalIncome: income,
-        totalExpense: 0,
-        pendingAmount: pending,
-        netProfit: income
-      })
+      if (error) {
+        toast.error('加载订单失败: ' + error.message)
+      } else {
+        setOrders(data || [])
+        const stats = {
+          total: data?.length || 0,
+          pending: data?.filter(o => o.status === 'pending').length || 0,
+          paid: data?.filter(o => o.status === 'paid').length || 0,
+          completed: data?.filter(o => o.status === 'completed').length || 0,
+          cancelled: data?.filter(o => o.status === 'cancelled').length || 0,
+          expired: data?.filter(o => o.status === 'expired').length || 0
+        }
+        setStats(stats)
+      }
+    } catch (error: any) {
+      toast.error('加载订单失败: ' + error.message)
     }
     setLoading(false)
   }
 
   useEffect(() => {
-    loadFinance()
-  }, [user])
-
-  // 管理员审核通过
-  const handleApprove = async (id: string) => {
-    if (!isAdmin) {
-      toast.error('只有管理员可以审核')
-      return
+    if (isAdmin) {
+      loadOrders()
     }
+  }, [user, filter])
 
-    const { error } = await supabase
-      .from('recharge_orders')
-      .update({ status: 'completed', confirmed_at: new Date().toISOString() })
-      .eq('id', id)
+  // 确认到账
+  const handleConfirm = async (orderId: string) => {
+    if (!confirm('确认该订单已到账？')) return
+    try {
+      const { error } = await supabase
+        .from('recharge_orders')
+        .update({ status: 'completed', confirmed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', orderId)
 
-    if (error) {
-      toast.error('审核失败: ' + error.message)
-    } else {
-      toast.success('✅ 已通过')
-      loadFinance()
-    }
-  }
-
-  // 管理员拒绝
-  const handleReject = async (id: string) => {
-    if (!isAdmin) {
-      toast.error('只有管理员可以拒绝')
-      return
-    }
-
-    if (!confirm('确定要拒绝此订单吗？')) return
-
-    const { error } = await supabase
-      .from('recharge_orders')
-      .update({ status: 'cancelled' })
-      .eq('id', id)
-
-    if (error) {
-      toast.error('操作失败: ' + error.message)
-    } else {
-      toast.success('已拒绝')
-      loadFinance()
+      if (error) {
+        toast.error('确认失败: ' + error.message)
+      } else {
+        toast.success('✅ 已确认到账')
+        loadOrders()
+      }
+    } catch (error: any) {
+      toast.error('确认失败: ' + error.message)
     }
   }
 
-  const handleExport = () => {
-    // 导出逻辑
-    const csv = [
-      ['ID', '用户', '金额', '积分', '状态', '时间'],
-      ...records.map(r => [
-        r.id.slice(0, 8),
-        r.user_id,
-        r.amount,
-        r.points,
-        r.status,
-        new Date(r.created_at).toLocaleString()
-      ])
-    ].map(row => row.join(',')).join('\n')
+  // 管理员取消订单
+  const handleCancel = async (orderId: string) => {
+    if (!confirm('确定要取消该订单吗？')) return
+    try {
+      const { error } = await supabase
+        .from('recharge_orders')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', orderId)
 
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `finance_${new Date().toISOString().slice(0,10)}.csv`
-    a.click()
-    toast.success('导出成功')
-  }
-
-  const statusColors: Record<string, string> = {
-    pending: 'warning',
-    paid: 'info',
-    completed: 'success',
-    cancelled: 'default',
-    expired: 'danger'
+      if (error) {
+        toast.error('取消失败: ' + error.message)
+      } else {
+        toast.success('✅ 订单已取消')
+        loadOrders()
+      }
+    } catch (error: any) {
+      toast.error('取消失败: ' + error.message)
+    }
   }
 
   const statusLabels: Record<string, string> = {
@@ -146,171 +103,140 @@ export const Finance = () => {
     expired: '已过期'
   }
 
-  const filtered = records.filter(r => {
-    const matchSearch = r.id.includes(search) || r.user_id?.includes(search)
-    const matchStatus = !filterStatus || r.status === filterStatus
-    return matchSearch && matchStatus
-  })
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-500/20 text-yellow-400',
+    paid: 'bg-blue-500/20 text-blue-400',
+    completed: 'bg-green-500/20 text-green-400',
+    cancelled: 'bg-gray-500/20 text-gray-400',
+    expired: 'bg-red-500/20 text-red-400'
+  }
 
-  if (loading) {
+  if (!isAdmin) {
     return (
-      <div className="p-6 bg-[#f0f2f5] min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">加载中...</div>
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="text-center py-12">
+          <p className="text-gray-400">您没有权限访问此页面</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="p-6 bg-[#f0f2f5] min-h-screen">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">财务管理</h1>
-            <p className="text-gray-500 text-sm">查看所有财务记录和统计</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={loadFinance}>
-              <RefreshCw size={16} className="mr-2" /> 刷新
-            </Button>
-            <Button variant="primary" onClick={handleExport}>
-              <Download size={16} className="mr-2" /> 导出
-            </Button>
-          </div>
+    <div className="p-6 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+          💰 财务管理
+        </h1>
+        <button onClick={loadOrders} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2 transition">
+          <RefreshCw className="w-4 h-4" />
+          刷新
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-white">{stats.total}</p>
+          <p className="text-xs text-gray-400">全部</p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="text-green-500" size={20} />
-              <span className="text-gray-500 text-sm">总收入</span>
-            </div>
-            <div className="text-2xl font-bold text-green-500 mt-1">
-              ${stats.totalIncome.toFixed(2)}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <TrendingDown className="text-red-500" size={20} />
-              <span className="text-gray-500 text-sm">总支出</span>
-            </div>
-            <div className="text-2xl font-bold text-red-500 mt-1">
-              ${stats.totalExpense.toFixed(2)}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="text-blue-500" size={20} />
-              <span className="text-gray-500 text-sm">净利润</span>
-            </div>
-            <div className={`text-2xl font-bold mt-1 ${stats.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              ${stats.netProfit.toFixed(2)}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <Clock className="text-yellow-500" size={20} />
-              <span className="text-gray-500 text-sm">待处理金额</span>
-            </div>
-            <div className="text-2xl font-bold text-yellow-500 mt-1">
-              ${stats.pendingAmount.toFixed(2)}
-            </div>
-          </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
+          <p className="text-xs text-gray-400">待支付</p>
         </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-blue-400">{stats.paid}</p>
+          <p className="text-xs text-gray-400">待审核</p>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
+          <p className="text-xs text-gray-400">已完成</p>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-gray-400">{stats.cancelled}</p>
+          <p className="text-xs text-gray-400">已取消</p>
+        </div>
+        <div className="bg-gray-800/50 rounded-lg p-3 text-center border border-gray-700/50">
+          <p className="text-2xl font-bold text-red-400">{stats.expired}</p>
+          <p className="text-xs text-gray-400">已过期</p>
+        </div>
+      </div>
 
-        <Card>
-          <div className="flex flex-wrap gap-4 p-4">
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                placeholder="搜索ID、用户..."
-                value={search}
-                onChange={(e: any) => setSearch(e.target.value)}
-                className="bg-gray-50 border-gray-200 text-gray-900"
-                prefix={<Search size={16} className="text-gray-400" />}
-              />
-            </div>
-            <select
-              className="px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-900 focus:outline-none focus:border-yellow-400"
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-            >
-              <option value="">全部状态</option>
-              <option value="pending">待支付</option>
-              <option value="paid">待审核</option>
-              <option value="completed">已完成</option>
-              <option value="cancelled">已取消</option>
-              <option value="expired">已过期</option>
-            </select>
-            <Button variant="ghost" onClick={() => { setSearch(''); setFilterStatus('') }}>
-              重置
-            </Button>
-          </div>
-        </Card>
+      <div className="flex gap-2 mb-4">
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm"
+        >
+          <option value="all">全部状态</option>
+          <option value="pending">待支付</option>
+          <option value="paid">已支付-待审核</option>
+          <option value="completed">已完成</option>
+          <option value="cancelled">已取消</option>
+          <option value="expired">已过期</option>
+        </select>
+      </div>
 
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">用户</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">金额</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">积分</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">时间</th>
-                  {isAdmin && (
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">操作</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((r) => (
-                  <tr key={r.id} className="border-t border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-400 text-xs font-mono">{r.id.slice(0, 8)}</td>
-                    <td className="px-4 py-3 text-gray-900 text-sm">{r.user_id?.slice(0, 8) || '未知'}</td>
-                    <td className="px-4 py-3 text-gray-900 font-medium">${r.amount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-gray-900">{r.points?.toFixed(2)}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={statusColors[r.status] || 'default'}>
-                        {statusLabels[r.status] || r.status}
-                      </Badge>
+      <div className="bg-gray-800/30 rounded-lg overflow-hidden border border-gray-700/50">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-700/50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">订单号</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">用户</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">金额</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">积分</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">状态</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-400 uppercase">创建时间</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-gray-400 uppercase">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">加载中...</td></tr>
+              ) : orders.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-8 text-gray-400">暂无订单</td></tr>
+              ) : (
+                orders.map((order) => (
+                  <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
+                    <td className="px-4 py-2 text-white font-mono text-xs">{order.id?.slice(0, 8)}</td>
+                    <td className="px-4 py-2 text-gray-300 text-xs">{order.user_id?.slice(0, 8)}</td>
+                    <td className="px-4 py-2 text-yellow-400">${order.amount?.toFixed(2)}</td>
+                    <td className="px-4 py-2 text-white">{order.points?.toFixed(2)}</td>
+                    <td className="px-4 py-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-500/20 text-gray-400'}`}>
+                        {statusLabels[order.status] || order.status}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">
-                      {new Date(r.created_at).toLocaleString()}
+                    <td className="px-4 py-2 text-gray-400 text-xs">
+                      {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </td>
-                    {isAdmin && r.status === 'paid' && (
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
+                    <td className="px-4 py-2 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        {order.status === 'paid' && (
                           <button
-                            onClick={() => handleApprove(r.id)}
-                            className="p-1.5 bg-green-500/20 text-green-500 rounded hover:bg-green-500/30"
-                            title="通过"
+                            onClick={() => handleConfirm(order.id)}
+                            className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs hover:bg-green-500/30 transition flex items-center gap-1"
                           >
-                            <CheckCircle size={16} />
+                            <CheckCircle className="w-3 h-3" />
+                            确认到账
                           </button>
+                        )}
+                        {(order.status === 'pending' || order.status === 'paid') && (
                           <button
-                            onClick={() => handleReject(r.id)}
-                            className="p-1.5 bg-red-500/20 text-red-500 rounded hover:bg-red-500/30"
-                            title="拒绝"
+                            onClick={() => handleCancel(order.id)}
+                            className="px-2 py-1 bg-red-500/20 text-red-400 rounded text-xs hover:bg-red-500/30 transition flex items-center gap-1"
                           >
-                            <XCircle size={16} />
+                            <XCircle className="w-3 h-3" />
+                            取消
                           </button>
-                        </div>
-                      </td>
-                    )}
-                    {isAdmin && r.status === 'pending' && (
-                      <td className="px-4 py-3 text-gray-400 text-xs">等待用户支付</td>
-                    )}
+                        )}
+                      </div>
+                    </td>
                   </tr>
-                ))}
-                {filtered.length === 0 && (
-                  <tr>
-                    <td colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-gray-400">暂无记录</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
