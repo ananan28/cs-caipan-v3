@@ -106,7 +106,6 @@ export const Recharge = () => {
     setSubmitting(true)
     try {
       const { data, error } = await supabase
-      const { data, error } = await supabase
         .from('recharge_orders')
         .insert({
           user_id: user?.id,
