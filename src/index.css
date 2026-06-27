@@ -2,45 +2,49 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 全局文字颜色修复 */
-body {
-  color: #e5e7eb;
-  background-color: #111827;
+/* 强制所有页面深色背景 + 黄色文字 */
+* {
+  color: #fbbf24 !important;
 }
 
-.text-gray-400, .text-gray-300, .text-gray-500 {
-  color: #d1d5db !important;
+body, html, #root, .app, main, div, section, article, header, footer, nav, aside {
+  background-color: #111827 !important;
 }
 
+/* 白色背景卡片强制变深色 */
+.bg-white, .bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300 {
+  background-color: #1f2937 !important;
+}
+
+/* 黑色文字强制变黄色 */
+.text-black, .text-gray-800, .text-gray-900, .text-gray-700, .text-gray-600, .text-gray-500, .text-gray-400 {
+  color: #fbbf24 !important;
+}
+
+/* 白色文字保持可见 */
 .text-white {
   color: #ffffff !important;
 }
 
-.text-yellow-400 {
+/* 表格和卡片文字 */
+td, th, p, span, label, h1, h2, h3, h4, h5, h6, div, li, a, button:not(.no-force) {
   color: #fbbf24 !important;
 }
 
-.text-green-400 {
-  color: #34d399 !important;
+/* 输入框文字 */
+input, textarea, select {
+  color: #fbbf24 !important;
+  background-color: #1f2937 !important;
 }
 
-.text-red-400 {
-  color: #f87171 !important;
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
 }
-
-.text-blue-400 {
-  color: #60a5fa !important;
+::-webkit-scrollbar-track {
+  background: #1f2937;
 }
-
-td, th {
-  color: #d1d5db !important;
-}
-
-/* 修复表格 */
-table {
-  color: #e5e7eb;
-}
-
-button, .button {
-  color: #ffffff;
+::-webkit-scrollbar-thumb {
+  background: #fbbf24;
+  border-radius: 4px;
 }
