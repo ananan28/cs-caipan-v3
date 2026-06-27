@@ -111,7 +111,7 @@ export const Orders = () => {
         </h1>
         <button
           onClick={loadOrders}
-          className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white flex items-center gap-2 transition"
+          className="px-4 py-2 bg-gray-900 hover:bg-gray-900 rounded-lg text-white flex items-center gap-2 transition"
         >
           <RefreshCw className="w-4 h-4" />
           刷新
@@ -119,27 +119,27 @@ export const Orders = () => {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
+        <div className="bg-gray-900/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-white">{stats.total}</p>
-          <p className="text-xs text-gray-200">总订单</p>
+          <p className="text-xs text-yellow-400">总订单</p>
         </div>
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
+        <div className="bg-gray-900/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-yellow-400">{stats.pending}</p>
-          <p className="text-xs text-gray-200">待支付</p>
+          <p className="text-xs text-yellow-400">待支付</p>
         </div>
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
+        <div className="bg-gray-900/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-blue-400">{stats.paid}</p>
-          <p className="text-xs text-gray-200">已支付-待审核</p>
+          <p className="text-xs text-yellow-400">已支付-待审核</p>
         </div>
-        <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
+        <div className="bg-gray-900/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-2xl font-bold text-green-400">{stats.completed}</p>
-          <p className="text-xs text-gray-200">已完成</p>
+          <p className="text-xs text-yellow-400">已完成</p>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4 bg-gray-800/30 rounded-lg p-3">
-        <div className="flex items-center gap-2 bg-gray-700/50 rounded-lg px-3 py-1.5 flex-1 min-w-[200px]">
-          <Search className="w-4 h-4 text-gray-200" />
+      <div className="flex flex-wrap items-center gap-3 mb-4 bg-gray-900/30 rounded-lg p-3">
+        <div className="flex items-center gap-2 bg-gray-900/50 rounded-lg px-3 py-1.5 flex-1 min-w-[200px]">
+          <Search className="w-4 h-4 text-yellow-400" />
           <input
             type="text"
             placeholder="搜索订单号..."
@@ -151,7 +151,7 @@ export const Orders = () => {
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-1.5 bg-gray-700/50 border border-gray-600 rounded-lg text-white text-sm"
+          className="px-3 py-1.5 bg-gray-900/50 border border-gray-600 rounded-lg text-white text-sm"
         >
           <option value="">全部状态</option>
           <option value="pending">待支付</option>
@@ -162,44 +162,44 @@ export const Orders = () => {
         </select>
         <button
           onClick={loadOrders}
-          className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition"
+          className="px-4 py-1.5 bg-gray-900 hover:bg-gray-900 rounded-lg text-white text-sm transition"
         >
           <RefreshCw className="w-4 h-4 inline mr-1" />
           刷新
         </button>
       </div>
 
-      <div className="bg-gray-800/30 rounded-lg overflow-hidden border border-gray-700/50">
+      <div className="bg-gray-900/30 rounded-lg overflow-hidden border border-gray-700/50">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-700/50">
+            <thead className="bg-gray-900/50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">订单号</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">金额</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">状态</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-200 uppercase">创建时间</th>
-                <th className="px-4 py-2 text-center text-xs font-medium text-gray-200 uppercase">操作</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-yellow-400 uppercase">订单号</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-yellow-400 uppercase">金额</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-yellow-400 uppercase">状态</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-yellow-400 uppercase">创建时间</th>
+                <th className="px-4 py-2 text-center text-xs font-medium text-yellow-400 uppercase">操作</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-8 text-gray-200">暂无订单</td>
+                  <td colSpan={5} className="text-center py-8 text-yellow-400">暂无订单</td>
                 </tr>
               ) : (
                 filtered.map((order: any) => {
                   const color = statusColors[order.status] || 'default'
                   const label = statusLabels[order.status] || order.status || '未知'
                   return (
-                    <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
+                    <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-900/20 transition">
                       <td className="px-4 py-2 text-white font-mono text-xs">{order.id?.slice(0, 8)}</td>
                       <td className="px-4 py-2 text-yellow-400">${order.amount}</td>
                       <td className="px-4 py-2">
-                        <span className={`px-2 py-1 rounded-full text-xs bg-gray-700/50 text-gray-200`}>
+                        <span className={`px-2 py-1 rounded-full text-xs bg-gray-900/50 text-yellow-400`}>
                           {label}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-gray-200 text-xs">
+                      <td className="px-4 py-2 text-yellow-400 text-xs">
                         {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                       </td>
                       <td className="px-4 py-2 text-center">

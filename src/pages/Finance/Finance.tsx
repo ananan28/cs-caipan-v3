@@ -102,7 +102,7 @@ export const Finance = () => {
     pending: 'bg-yellow-500/30 text-yellow-300 font-semibold',
     paid: 'bg-blue-500/30 text-blue-300 font-semibold',
     completed: 'bg-green-500/30 text-green-300 font-semibold',
-    cancelled: 'bg-gray-500/30 text-gray-300 font-semibold',
+    cancelled: 'bg-gray-900/30 text-yellow-400 font-semibold',
     expired: 'bg-red-500/30 text-red-300 font-semibold'
   }
 
@@ -114,7 +114,7 @@ export const Finance = () => {
     <div className="p-6 max-w-7xl mx-auto bg-gray-900">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-white">💰 财务管理</h1>
-        <button onClick={loadOrders} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-base flex items-center gap-2 transition">
+        <button onClick={loadOrders} className="px-4 py-2 bg-gray-900 hover:bg-gray-900 rounded-lg text-white text-base flex items-center gap-2 transition">
           <RefreshCw className="w-5 h-5" />
           刷新
         </button>
@@ -129,9 +129,9 @@ export const Finance = () => {
           { label: '已取消', value: stats.cancelled, color: 'text-yellow-400' },
           { label: '已过期', value: stats.expired, color: 'text-red-400' }
         ].map((item) => (
-          <div key={item.label} className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
+          <div key={item.label} className="bg-gray-900/50 rounded-lg p-4 text-center border border-gray-700/50">
             <p className={`text-3xl font-bold ${item.color}`}>{item.value}</p>
-            <p className="text-sm text-gray-300">{item.label}</p>
+            <p className="text-sm text-yellow-400">{item.label}</p>
           </div>
         ))}
       </div>
@@ -140,7 +140,7 @@ export const Finance = () => {
         <select
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-base"
+          className="px-4 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-base"
         >
           <option value="all">全部状态</option>
           <option value="pending">待支付</option>
@@ -151,18 +151,18 @@ export const Finance = () => {
         </select>
       </div>
 
-      <div className="bg-gray-800/30 rounded-lg overflow-hidden border border-gray-700/50">
+      <div className="bg-gray-900/30 rounded-lg overflow-hidden border border-gray-700/50">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-700/50">
+            <thead className="bg-gray-900/50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">订单号</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">用户</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">金额</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">积分</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">状态</th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-300">创建时间</th>
-                <th className="px-4 py-3 text-center text-sm font-medium text-gray-300">操作</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">订单号</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">用户</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">金额</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">积分</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">状态</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-yellow-400">创建时间</th>
+                <th className="px-4 py-3 text-center text-sm font-medium text-yellow-400">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -172,17 +172,17 @@ export const Finance = () => {
                 <tr><td colSpan={7} className="text-center py-8 text-yellow-400 text-base">暂无订单</td></tr>
               ) : (
                 orders.map((order: any) => (
-                  <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
+                  <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-900/20 transition">
                     <td className="px-4 py-3 text-white font-mono text-sm">{order.id?.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-white text-sm">{order.user_id?.slice(0, 8)}</td>
                     <td className="px-4 py-3 text-yellow-400 font-semibold text-sm">${order.amount?.toFixed(2)}</td>
                     <td className="px-4 py-3 text-white text-sm">{order.points?.toFixed(2)}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status] || 'bg-gray-500/30 text-gray-300'}`}>
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusColors[order.status] || 'bg-gray-900/30 text-yellow-400'}`}>
                         {statusLabels[order.status] || order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-300 text-sm">
+                    <td className="px-4 py-3 text-yellow-400 text-sm">
                       {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </td>
                     <td className="px-4 py-3 text-center">

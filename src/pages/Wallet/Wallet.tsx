@@ -169,7 +169,7 @@ export const WalletPage = () => {
         </h1>
         <button
           onClick={() => { loadBalance(); loadTransactions(); }}
-          className="p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition"
+          className="p-2 bg-gray-900 hover:bg-gray-900 rounded-lg transition"
         >
           <RefreshCw className="w-4 h-4 text-white" />
         </button>
@@ -177,7 +177,7 @@ export const WalletPage = () => {
 
       {/* 余额卡片 */}
       <Card className="bg-gradient-to-r from-yellow-400/10 to-yellow-600/10 border-yellow-500/30 p-6 mb-6">
-        <p className="text-gray-200 text-sm">可用余额</p>
+        <p className="text-yellow-400 text-sm">可用余额</p>
         <p className="text-4xl font-bold text-white">{balance.toFixed(2)} 积分</p>
         <div className="flex gap-2 mt-4">
           <button
@@ -189,7 +189,7 @@ export const WalletPage = () => {
           </button>
           <button
             onClick={() => copyAddress(user?.id || '')}
-            className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition flex items-center gap-2"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-900 transition flex items-center gap-2"
           >
             <Copy className="w-4 h-4" />
             复制ID
@@ -204,7 +204,7 @@ export const WalletPage = () => {
             <h2 className="text-xl font-bold text-white mb-4">转账</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-200 block mb-1">接收方用户名</label>
+                <label className="text-sm text-yellow-400 block mb-1">接收方用户名</label>
                 <Input
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
@@ -213,7 +213,7 @@ export const WalletPage = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-200 block mb-1">金额</label>
+                <label className="text-sm text-yellow-400 block mb-1">金额</label>
                 <Input
                   type="number"
                   value={transferAmount}
@@ -221,7 +221,7 @@ export const WalletPage = () => {
                   placeholder="输入金额"
                   className="w-full"
                 />
-                <p className="text-xs text-gray-200 mt-1">可用余额: {balance.toFixed(2)} 积分</p>
+                <p className="text-xs text-yellow-400 mt-1">可用余额: {balance.toFixed(2)} 积分</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -233,7 +233,7 @@ export const WalletPage = () => {
                 </Button>
                 <Button
                   onClick={() => setShowTransfer(false)}
-                  className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-900 transition"
                 >
                   取消
                 </Button>
@@ -244,14 +244,14 @@ export const WalletPage = () => {
       )}
 
       {/* 交易记录 */}
-      <Card className="bg-gray-800/50 border-gray-700 p-6">
+      <Card className="bg-gray-900/50 border-gray-700 p-6">
         <h2 className="text-white font-medium mb-4">交易记录</h2>
         {loading ? (
           <div className="flex items-center justify-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-yellow-400"></div>
           </div>
         ) : transactions.length === 0 ? (
-          <div className="text-center text-gray-200 py-8">
+          <div className="text-center text-yellow-400 py-8">
             <p>暂无交易记录</p>
           </div>
         ) : (
@@ -259,7 +259,7 @@ export const WalletPage = () => {
             {transactions.map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg"
+                className="flex items-center justify-between p-3 bg-gray-900/30 rounded-lg"
               >
                 <div className="flex items-center gap-3">
                   {tx.amount > 0 ? (
@@ -269,7 +269,7 @@ export const WalletPage = () => {
                   )}
                   <div>
                     <p className="text-white text-sm">{tx.description || tx.type}</p>
-                    <p className="text-xs text-gray-200">
+                    <p className="text-xs text-yellow-400">
                       {tx.created_at ? new Date(tx.created_at).toLocaleString() : '-'}
                     </p>
                   </div>

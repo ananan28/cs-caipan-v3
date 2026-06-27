@@ -218,7 +218,7 @@ export const Recharge = () => {
     pending: 'bg-yellow-500/20 text-yellow-400',
     paid: 'bg-blue-500/20 text-blue-400',
     completed: 'bg-green-500/20 text-green-400',
-    cancelled: 'bg-gray-500/20 text-gray-200',
+    cancelled: 'bg-gray-900/20 text-yellow-400',
     expired: 'bg-red-500/20 text-red-400'
   }
 
@@ -230,14 +230,14 @@ export const Recharge = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 左侧：充值表单 */}
-        <Card className="bg-gray-800/50 border-gray-700 p-6">
+        <Card className="bg-gray-900/50 border-gray-700 p-6">
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-gray-200 block mb-1">
+              <label className="text-sm text-yellow-400 block mb-1">
                 USDT-TRC20
               </label>
               <div className="text-3xl font-bold text-white">$0.00</div>
-              <div className="text-sm text-gray-200 mt-1">
+              <div className="text-sm text-yellow-400 mt-1">
                 当前汇率：1 USDT = {rate} 积分
               </div>
               <div className="text-xs text-yellow-400 mt-1">
@@ -246,7 +246,7 @@ export const Recharge = () => {
             </div>
 
             <div>
-              <label className="text-sm text-gray-200 block mb-1">
+              <label className="text-sm text-yellow-400 block mb-1">
                 USDT数量
               </label>
               <input
@@ -254,14 +254,14 @@ export const Recharge = () => {
                 value={usdtAmount}
                 onChange={(e) => setUsdtAmount(e.target.value)}
                 placeholder="最小 1 USDT，最大 10000 USDT"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
                 min="1"
                 max="10000"
               />
             </div>
 
             <div>
-              <label className="text-sm text-gray-200 block mb-1">
+              <label className="text-sm text-yellow-400 block mb-1">
                 备注（可选）
               </label>
               <input
@@ -269,7 +269,7 @@ export const Recharge = () => {
                 value={remark}
                 onChange={(e) => setRemark(e.target.value)}
                 placeholder="充值备注"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
+                className="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-yellow-400"
               />
             </div>
 
@@ -284,14 +284,14 @@ export const Recharge = () => {
         </Card>
 
         {/* 右侧：订单列表 */}
-        <Card className="bg-gray-800/50 border-gray-700 p-6">
+        <Card className="bg-gray-900/50 border-gray-700 p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-white font-medium">充值记录</h2>
             <button
               onClick={loadOrders}
-              className="p-1 hover:bg-gray-700 rounded transition"
+              className="p-1 hover:bg-gray-900 rounded transition"
             >
-              <RefreshCw className="w-4 h-4 text-gray-200" />
+              <RefreshCw className="w-4 h-4 text-yellow-400" />
             </button>
           </div>
 
@@ -300,7 +300,7 @@ export const Recharge = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-yellow-400"></div>
             </div>
           ) : orders.length === 0 ? (
-            <div className="text-center text-gray-200 py-8">
+            <div className="text-center text-yellow-400 py-8">
               <p>暂无充值记录</p>
             </div>
           ) : (
@@ -308,13 +308,13 @@ export const Recharge = () => {
               {orders.map((order) => (
                 <div
                   key={order.id}
-                  className="bg-gray-700/30 rounded-lg p-3 flex items-center justify-between"
+                  className="bg-gray-900/30 rounded-lg p-3 flex items-center justify-between"
                 >
                   <div>
                     <p className="text-white text-sm font-mono">
                       {order.id?.slice(0, 8)}
                     </p>
-                    <p className="text-xs text-gray-200">
+                    <p className="text-xs text-yellow-400">
                       {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </p>
                     {order.amount && (
@@ -324,7 +324,7 @@ export const Recharge = () => {
                     )}
                   </div>
                   <div className="text-right">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-500/20 text-gray-200'}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[order.status] || 'bg-gray-900/20 text-yellow-400'}`}>
                       {statusLabels[order.status] || order.status || '未知'}
                     </span>
                     {isAdmin && order.status === 'paid' && (
@@ -355,49 +355,49 @@ export const Recharge = () => {
                 <img 
                   src={qrCodeDataUrl} 
                   alt="USDT支付二维码" 
-                  className="w-64 h-64 bg-white rounded-lg p-4"
+                  className="w-64 h-64 bg-gray-900 rounded-lg p-4"
                 />
                 <div className="mt-4 text-center w-full">
-                  <p className="text-gray-200 text-sm">收款地址</p>
-                  <div className="flex items-center gap-2 bg-gray-800 rounded-lg p-2 mt-1">
+                  <p className="text-yellow-400 text-sm">收款地址</p>
+                  <div className="flex items-center gap-2 bg-gray-900 rounded-lg p-2 mt-1">
                     <p className="text-white text-xs font-mono truncate flex-1">
                       {currentOrder.address}
                     </p>
                     <button
                       onClick={() => copyAddress(currentOrder.address)}
-                      className="p-1 hover:bg-gray-700 rounded transition"
+                      className="p-1 hover:bg-gray-900 rounded transition"
                     >
-                      <Copy className="w-4 h-4 text-gray-200" />
+                      <Copy className="w-4 h-4 text-yellow-400" />
                     </button>
                   </div>
                 </div>
                 <div className="mt-3 text-center w-full">
-                  <p className="text-gray-200 text-sm">支付金额</p>
+                  <p className="text-yellow-400 text-sm">支付金额</p>
                   <div className="flex items-center justify-center gap-2 mt-1">
                     <p className="text-2xl font-bold text-yellow-400">
                       {currentOrder.amount?.toFixed(2)} USDT
                     </p>
                     <button
                       onClick={() => copyAmount(currentOrder.amount)}
-                      className="p-1 hover:bg-gray-700 rounded transition"
+                      className="p-1 hover:bg-gray-900 rounded transition"
                     >
-                      <Copy className="w-4 h-4 text-gray-200" />
+                      <Copy className="w-4 h-4 text-yellow-400" />
                     </button>
                   </div>
-                  <p className="text-xs text-gray-200 mt-1">
+                  <p className="text-xs text-yellow-400 mt-1">
                     ⚡ 请转账精确金额，含随机尾数
                   </p>
                 </div>
                 <button
                   onClick={() => setShowQrModal(false)}
-                  className="mt-4 px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+                  className="mt-4 px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-900 transition"
                 >
                   关闭
                 </button>
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-200">二维码生成中...</p>
+                <p className="text-yellow-400">二维码生成中...</p>
               </div>
             )}
           </div>
