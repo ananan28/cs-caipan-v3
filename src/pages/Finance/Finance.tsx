@@ -104,7 +104,7 @@ export const Finance = () => {
     pending: 'bg-yellow-500/30 text-yellow-300 font-semibold',
     paid: 'bg-blue-500/30 text-blue-300 font-semibold',
     completed: 'bg-green-500/30 text-green-300 font-semibold',
-    cancelled: 'bg-gray-500/30 text-gray-300 font-semibold',
+    cancelled: 'bg-gray-500/30 text-gray-200 font-semibold',
     expired: 'bg-red-500/30 text-red-300 font-semibold'
   }
 
@@ -112,7 +112,7 @@ export const Finance = () => {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="text-center py-12">
-          <p className="text-gray-400 text-lg">您没有权限访问此页面</p>
+          <p className="text-gray-200 text-lg">您没有权限访问此页面</p>
         </div>
       </div>
     )
@@ -134,27 +134,27 @@ export const Finance = () => {
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-3xl font-bold text-white">{stats.total}</p>
-          <p className="text-sm text-gray-400">全部</p>
+          <p className="text-sm text-gray-200">全部</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-3xl font-bold text-yellow-400">{stats.pending}</p>
-          <p className="text-sm text-gray-400">待支付</p>
+          <p className="text-sm text-gray-200">待支付</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-3xl font-bold text-blue-400">{stats.paid}</p>
-          <p className="text-sm text-gray-400">待审核</p>
+          <p className="text-sm text-gray-200">待审核</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-3xl font-bold text-green-400">{stats.completed}</p>
-          <p className="text-sm text-gray-400">已完成</p>
+          <p className="text-sm text-gray-200">已完成</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
-          <p className="text-3xl font-bold text-gray-400">{stats.cancelled}</p>
-          <p className="text-sm text-gray-400">已取消</p>
+          <p className="text-3xl font-bold text-gray-200">{stats.cancelled}</p>
+          <p className="text-sm text-gray-200">已取消</p>
         </div>
         <div className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
           <p className="text-3xl font-bold text-red-400">{stats.expired}</p>
-          <p className="text-sm text-gray-400">已过期</p>
+          <p className="text-sm text-gray-200">已过期</p>
         </div>
       </div>
 
@@ -179,20 +179,20 @@ export const Finance = () => {
           <table className="w-full">
             <thead className="bg-gray-700/50">
               <tr>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">订单号</th>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">用户</th>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">金额</th>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">积分</th>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">状态</th>
-                <th className="px-4 py-3 text-left text-base font-medium text-gray-300 uppercase tracking-wider">创建时间</th>
-                <th className="px-4 py-3 text-center text-base font-medium text-gray-300 uppercase tracking-wider">操作</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">订单号</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">用户</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">金额</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">积分</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">状态</th>
+                <th className="px-4 py-3 text-left text-base font-medium text-gray-200 uppercase tracking-wider">创建时间</th>
+                <th className="px-4 py-3 text-center text-base font-medium text-gray-200 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400 text-base">加载中...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-200 text-base">加载中...</td></tr>
               ) : orders.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400 text-base">暂无订单</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-gray-200 text-base">暂无订单</td></tr>
               ) : (
                 orders.map((order: any) => (
                   <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
@@ -201,11 +201,11 @@ export const Finance = () => {
                     <td className="px-4 py-3 text-yellow-400 font-semibold text-base">${order.amount?.toFixed(2)}</td>
                     <td className="px-4 py-3 text-white text-base">{order.points?.toFixed(2)}</td>
                     <td className="px-4 py-3">
-                      <span className={`px-3 py-1 rounded-full text-sm ${statusColors[order.status] || 'bg-gray-500/30 text-gray-300 font-semibold'}`}>
+                      <span className={`px-3 py-1 rounded-full text-sm ${statusColors[order.status] || 'bg-gray-500/30 text-gray-200 font-semibold'}`}>
                         {statusLabels[order.status] || order.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-300 text-base">
+                    <td className="px-4 py-3 text-gray-200 text-base">
                       {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}
                     </td>
                     <td className="px-4 py-3 text-center">

@@ -177,7 +177,7 @@ export const WalletPage = () => {
 
       {/* 余额卡片 */}
       <Card className="bg-gradient-to-r from-yellow-400/10 to-yellow-600/10 border-yellow-500/30 p-6 mb-6">
-        <p className="text-gray-400 text-sm">可用余额</p>
+        <p className="text-gray-200 text-sm">可用余额</p>
         <p className="text-4xl font-bold text-white">{balance.toFixed(2)} 积分</p>
         <div className="flex gap-2 mt-4">
           <button
@@ -204,7 +204,7 @@ export const WalletPage = () => {
             <h2 className="text-xl font-bold text-white mb-4">转账</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm text-gray-300 block mb-1">接收方用户名</label>
+                <label className="text-sm text-gray-200 block mb-1">接收方用户名</label>
                 <Input
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
@@ -213,7 +213,7 @@ export const WalletPage = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-gray-300 block mb-1">金额</label>
+                <label className="text-sm text-gray-200 block mb-1">金额</label>
                 <Input
                   type="number"
                   value={transferAmount}
@@ -221,7 +221,7 @@ export const WalletPage = () => {
                   placeholder="输入金额"
                   className="w-full"
                 />
-                <p className="text-xs text-gray-400 mt-1">可用余额: {balance.toFixed(2)} 积分</p>
+                <p className="text-xs text-gray-200 mt-1">可用余额: {balance.toFixed(2)} 积分</p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -251,7 +251,7 @@ export const WalletPage = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-yellow-400"></div>
           </div>
         ) : transactions.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
+          <div className="text-center text-gray-200 py-8">
             <p>暂无交易记录</p>
           </div>
         ) : (
@@ -269,7 +269,7 @@ export const WalletPage = () => {
                   )}
                   <div>
                     <p className="text-white text-sm">{tx.description || tx.type}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-gray-200">
                       {tx.created_at ? new Date(tx.created_at).toLocaleString() : '-'}
                     </p>
                   </div>
@@ -285,3 +285,5 @@ export const WalletPage = () => {
     </div>
   )
 }
+
+export default WalletPage
