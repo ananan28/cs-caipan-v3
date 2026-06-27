@@ -60,6 +60,7 @@ function App() {
             <Route path="ledger" element={<Ledger />} />
             <Route path="invites" element={<Invites />} />
             <Route path="api-center" element={<ApiCenter />} />
+<Route path="api" element={<ApiCenter />} />
             <Route path="payment-addresses" element={<PaymentAddresses />} />
             <Route path="recharge" element={<Recharge />} />
             <Route path="features" element={<Features />} />
