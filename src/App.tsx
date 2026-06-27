@@ -28,76 +28,53 @@ import { Stats } from './pages/Stats/Stats'
 import { Chat } from './pages/Chat/Chat'
 import { ChatSettings } from './pages/ChatSettings/ChatSettings'
 import { ScheduledTasks } from './pages/ScheduledTasks/ScheduledTasks'
-import { Backup } from './pages/Backup/Backup'
-import { Monitor } from './pages/Monitor/Monitor'
-import { PriceControl } from './pages/PriceControl/PriceControl'
-import { ChangeLog } from './pages/ChangeLog/ChangeLog'
-import { NotFound } from './pages/NotFound/NotFound'
-import { Recharge } from './pages/Recharge/Recharge'
-import { PaymentAddresses } from './pages/Admin/PaymentAddresses'
-import { SuperAdmin } from './pages/Admin/SuperAdmin'
-import { ApiKeys } from './pages/Admin/ApiKeys'
-import { DataExport } from './pages/Admin/DataExport'
-import { LanguageProvider } from './context/LanguageContext'
-import { ThemeProvider } from './context/ThemeContext'
-import { WallpaperProvider } from './context/WallpaperContext'
-import { Wallpaper } from './components/Common/Wallpaper'
-
-const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { token } = useAuthStore()
-  if (!token) return <Navigate to="/login" replace />
-  return <>{children}</>
-}
+import { LanguageProvider } from './contexts/LanguageContext'
+import { ThemeProvider } from './contexts/ThemeContext'
+import { WallpaperProvider } from './contexts/WallpaperContext'
 
 function App() {
+  const { token } = useAuthStore()
+
   return (
     <LanguageProvider>
       <ThemeProvider>
         <WallpaperProvider>
           <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Wallpaper type="login"><Login /></Wallpaper>} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/" element={<PrivateRoute><Wallpaper type="app"><Layout /></Wallpaper></PrivateRoute>}>
-                <Route index element={<Dashboard />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="users" element={<Users />} />
-                <Route path="wallet" element={<WalletPage />} />
-                <Route path="finance" element={<Finance />} />
-                <Route path="transactions" element={<Transactions />} />
-                <Route path="orders" element={<Orders />} />
-                <Route path="ledger" element={<Ledger />} />
-                <Route path="invites" element={<Invites />} />
-                <Route path="tasks" element={<Tasks />} />
-                <Route path="features" element={<Features />} />
-                <Route path="api" element={<ApiCenter />} />
-                <Route path="tickets" element={<Tickets />} />
-                <Route path="announcements" element={<Announcements />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="logs" element={<Logs />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="permissions" element={<Permissions />} />
-                <Route path="notifications" element={<Notifications />} />
-                <Route path="stats" element={<Stats />} />
-                <Route path="chat" element={<Chat />} />
-                <Route path="chat-settings" element={<ChatSettings />} />
-                <Route path="scheduled-tasks" element={<ScheduledTasks />} />
-                <Route path="backup" element={<Backup />} />
-                <Route path="monitor" element={<Monitor />} />
-                <Route path="price-control" element={<PriceControl />} />
-                <Route path="changelog" element={<ChangeLog />} />
-                <Route path="recharge" element={<Recharge />} />
-                <Route path="payment-addresses" element={<PaymentAddresses />} />
-                <Route path="super-admin" element={<SuperAdmin />} />
-                <Route path="api-keys" element={<ApiKeys />} />
-                <Route path="data-export" element={<DataExport />} />
-                <Route path="*" element={<NotFound />} />
-              </Route>
-            </Routes>
+            <div className="min-h-screen bg-gray-900 text-yellow-400">
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/" element={token ? <Layout /> : <Navigate to="/login" />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="users" element={<Users />} />
+                  <Route path="wallet" element={<WalletPage />} />
+                  <Route path="finance" element={<Finance />} />
+                  <Route path="orders" element={<Orders />} />
+                  <Route path="tasks" element={<Tasks />} />
+                  <Route path="tickets" element={<Tickets />} />
+                  <Route path="announcements" element={<Announcements />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="logs" element={<Logs />} />
+                  <Route path="profile" element={<Profile />} />
+                  <Route path="permissions" element={<Permissions />} />
+                  <Route path="transactions" element={<Transactions />} />
+                  <Route path="ledger" element={<Ledger />} />
+                  <Route path="invites" element={<Invites />} />
+                  <Route path="api-center" element={<ApiCenter />} />
+                  <Route path="features" element={<Features />} />
+                  <Route path="notifications" element={<Notifications />} />
+                  <Route path="stats" element={<Stats />} />
+                  <Route path="chat" element={<Chat />} />
+                  <Route path="chat-settings" element={<ChatSettings />} />
+                  <Route path="scheduled-tasks" element={<ScheduledTasks />} />
+                </Route>
+              </Routes>
+              <FloatingChat />
+            </div>
           </BrowserRouter>
-          <FloatingChat />
         </WallpaperProvider>
       </ThemeProvider>
     </LanguageProvider>
