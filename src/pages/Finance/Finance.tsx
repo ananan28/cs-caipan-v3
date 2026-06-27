@@ -126,7 +126,7 @@ export const Finance = () => {
           { label: '待支付', value: stats.pending, color: 'text-yellow-400' },
           { label: '待审核', value: stats.paid, color: 'text-blue-400' },
           { label: '已完成', value: stats.completed, color: 'text-green-400' },
-          { label: '已取消', value: stats.cancelled, color: 'text-gray-400' },
+          { label: '已取消', value: stats.cancelled, color: 'text-yellow-400' },
           { label: '已过期', value: stats.expired, color: 'text-red-400' }
         ].map((item) => (
           <div key={item.label} className="bg-gray-800/50 rounded-lg p-4 text-center border border-gray-700/50">
@@ -167,9 +167,9 @@ export const Finance = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400 text-base">加载中...</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-yellow-400 text-base">加载中...</td></tr>
               ) : orders.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-gray-400 text-base">暂无订单</td></tr>
+                <tr><td colSpan={7} className="text-center py-8 text-yellow-400 text-base">暂无订单</td></tr>
               ) : (
                 orders.map((order: any) => (
                   <tr key={order.id} className="border-t border-gray-700/30 hover:bg-gray-700/20 transition">
