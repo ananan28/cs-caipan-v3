@@ -2,7 +2,7 @@ import React from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useNotificationStore } from '../../store/notificationStore'
 import { Bell, User, LogOut, Sun, Moon } from 'lucide-react'
-import { useTheme } from '../../context/ThemeContext'
+import { useTheme } from '../../contexts/ThemeContext'
 import { useNavigate } from 'react-router-dom'
 
 interface TopbarProps {
