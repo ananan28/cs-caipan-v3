@@ -22,6 +22,7 @@ import { Transactions } from './pages/Transactions/Transactions'
 import { Ledger } from './pages/Ledger/Ledger'
 import { Invites } from './pages/Invites/Invites'
 import { ApiCenter } from './pages/ApiCenter/ApiCenter'
+import { PaymentAddresses } from './pages/Admin/PaymentAddresses'
 import { Features } from './pages/Features/Features'
 import { Notifications } from './pages/Notifications/Notifications'
 import { Stats } from './pages/Stats/Stats'
@@ -58,6 +59,7 @@ function App() {
             <Route path="ledger" element={<Ledger />} />
             <Route path="invites" element={<Invites />} />
             <Route path="api-center" element={<ApiCenter />} />
+            <Route path="payment-addresses" element={<PaymentAddresses />} />
             <Route path="features" element={<Features />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="stats" element={<Stats />} />
