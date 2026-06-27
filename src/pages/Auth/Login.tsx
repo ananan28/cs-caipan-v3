@@ -36,20 +36,23 @@ export const Login = () => {
 
       if (data.user) {
         const metadata = data.user.user_metadata || {}
+        const userName = metadata.name || data.user.email?.split('@')[0] || 'user'
         const userData = {
           id: data.user.id,
           email: data.user.email || '',
-          name: metadata.name || data.user.email?.split('@')[0] || '',
+          name: userName,
+          username: userName,
           role: metadata.role || 'User'
         }
 
-        // 同步用户到 users 表
+        // 同步用户到 users 表（包含 name 字段）
         const { error: upsertError } = await supabase
           .from('users')
           .upsert({
             id: data.user.id,
             email: data.user.email,
-            username: metadata.name || data.user.email?.split('@')[0] || '',
+            name: userName,
+            username: userName,
             role: metadata.role || 'User',
             status: 'Active',
             created_at: new Date().toISOString(),
@@ -58,6 +61,7 @@ export const Login = () => {
 
         if (upsertError) {
           console.error('同步用户失败:', upsertError)
+          toast.error('用户数据同步失败: ' + upsertError.message)
         }
 
         login(userData, data.session?.access_token || '')
@@ -76,7 +80,7 @@ export const Login = () => {
       <div className="bg-gray-800/50 rounded-xl p-8 w-full max-w-md border border-gray-700/50">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-yellow-400">财盛集团</h1>
-          <p className="text-gray-400 mt-1">登录您的账号</p>
+          <p className="text-gray-300 mt-1">登录您的账号</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -113,7 +117,7 @@ export const Login = () => {
           </button>
         </form>
 
-        <p className="text-center text-gray-400 text-sm mt-4">
+        <p className="text-center text-gray-300 text-sm mt-4">
           还没有账号？{' '}
           <Link to="/register" className="text-yellow-400 hover:underline">
             立即注册
