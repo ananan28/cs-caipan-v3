@@ -11,6 +11,7 @@ import { Users } from './pages/Users/Users'
 import { WalletPage } from './pages/Wallet/Wallet'
 import { Finance } from './pages/Finance/Finance'
 import { Tasks } from './pages/Tasks/Tasks'
+import { CreateTask } from "./pages/Tasks/CreateTask"
 import { Tickets } from './pages/Tickets/Tickets'
 import { Announcements } from './pages/Announcements/Announcements'
 import { Settings } from './pages/Settings/Settings'
@@ -50,6 +51,7 @@ function App() {
             <Route path="finance" element={<Finance />} />
             <Route path="orders" element={<Orders />} />
             <Route path="tasks" element={<Tasks />} />
+<Route path="tasks/create" element={<CreateTask />} />
             <Route path="tickets" element={<Tickets />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />
