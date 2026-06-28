@@ -16,7 +16,7 @@ export class DeepSeekService {
       const { data } = await supabase
         .from('system_configs')
         .select('value')
-        .eq('key', 'deepseek_api_key')
+        .eq('key', 'openai_api_key')
         .single()
 
       if (data) {
