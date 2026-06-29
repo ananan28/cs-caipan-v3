@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '@/config/detectionItems'
-import { DetectionItem } from '@/config/detectionItems'
+import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
+import { DetectionItem } from '../../config/detectionItems'
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
