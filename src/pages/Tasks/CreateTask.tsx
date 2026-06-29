@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
+import { createDetectionTask } from '../../api/tasks'
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
   const [inputText, setInputText] = useState('')
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['whatsapp', 'telegram']))
+  const [loading, setLoading] = useState(false)
+  const [results, setResults] = useState<any[]>([])
+  const [taskCreated, setTaskCreated] = useState(false)
 
   const toggleGroup = (group: string) => {
     const newSet = new Set(expandedGroups)
@@ -66,6 +70,45 @@ export const CreateTask = () => {
   }
 
   const numbers = inputText.split('\n').filter(line => line.trim()).length
+
+  // 创建任务 - 调用真实检测API
+  const handleCreateTask = async () => {
+    if (numbers === 0) {
+      alert('请先输入号码')
+      return
+    }
+
+    if (selectedItems.size === 0) {
+      alert('请至少选择一个检测项目')
+      return
+    }
+
+    setLoading(true)
+    setTaskCreated(false)
+
+    try {
+      // 获取号码列表
+      const phoneList = inputText.split('\n').filter(line => line.trim())
+
+      // 获取选中的检测项ID列表
+      const itemsList = Array.from(selectedItems)
+
+      // 调用检测API
+      const result = await createDetectionTask(phoneList, itemsList)
+
+      if (result.success) {
+        setResults(result.results)
+        setTaskCreated(true)
+        alert(`✅ 检测完成！共检测 ${result.results.length} 个号码`)
+      } else {
+        alert('❌ 检测失败: ' + (result.error || '未知错误'))
+      }
+    } catch (error: any) {
+      alert('❌ 检测失败: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto text-yellow-400">
@@ -128,7 +171,6 @@ export const CreateTask = () => {
 
           return (
             <div key={group} className="mb-4 border-b border-gray-700/50 pb-4 last:border-0">
-              {/* 分组标题 */}
               <div className="flex items-center gap-3 mb-2">
                 <button
                   onClick={() => toggleGroup(group)}
@@ -150,7 +192,6 @@ export const CreateTask = () => {
               {isExpanded && (
                 <div className="ml-6 space-y-1.5">
                   {hasParent ? (
-                    // 有父级分组（如WhatsApp包含多个子项）
                     <>
                       {mainItems.map(main => {
                         const children = getChildItems(group, main.id)
@@ -200,7 +241,6 @@ export const CreateTask = () => {
                       })}
                     </>
                   ) : (
-                    // 无父级（独立项）
                     items.map(item => (
                       <label key={item.id} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer ml-4">
                         <input
@@ -238,11 +278,61 @@ export const CreateTask = () => {
               <p className="text-lg font-bold text-yellow-400">${(calculateTotal() * numbers).toFixed(2)}</p>
             </div>
           </div>
-          <button className="px-6 py-2 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed">
-            创建任务
+          <button
+            onClick={handleCreateTask}
+            disabled={loading || numbers === 0 || selectedItems.size === 0}
+            className="px-6 py-2 bg-yellow-400 text-black font-semibold rounded-lg hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? '检测中...' : '创建任务'}
           </button>
         </div>
       </div>
+
+      {/* 检测结果 */}
+      {taskCreated && results.length > 0 && (
+        <div className="bg-gray-800/50 rounded-lg p-4 mt-6 border border-green-500/50">
+          <h3 className="text-white font-medium mb-3">✅ 检测结果</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-700/50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-gray-300">号码</th>
+                  <th className="px-3 py-2 text-left text-gray-300">运营商</th>
+                  <th className="px-3 py-2 text-left text-gray-300">虚拟号</th>
+                  {selectedItems.has('whatsapp_registered') && (
+                    <th className="px-3 py-2 text-left text-gray-300">WhatsApp</th>
+                  )}
+                  {selectedItems.has('telegram_registered') && (
+                    <th className="px-3 py-2 text-left text-gray-300">Telegram</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {results.slice(0, 10).map((r, idx) => (
+                  <tr key={idx} className="border-t border-gray-700/30">
+                    <td className="px-3 py-2 text-white text-xs font-mono">{r.phone}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.operator || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.is_virtual ? '是' : '否'}</td>
+                    {selectedItems.has('whatsapp_registered') && (
+                      <td className="px-3 py-2 text-gray-300 text-xs">
+                        {r.whatsapp?.registered ? '✅已注册' : '❌未注册'}
+                      </td>
+                    )}
+                    {selectedItems.has('telegram_registered') && (
+                      <td className="px-3 py-2 text-gray-300 text-xs">
+                        {r.telegram?.registered ? '✅已注册' : '❌未注册'}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {results.length > 10 && (
+              <p className="text-xs text-gray-500 mt-2">显示前10条，共 {results.length} 条</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
