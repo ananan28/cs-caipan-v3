@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
 import { createDetectionTask } from '../../api/tasks'
+import { supabase } from '../../lib/supabase'
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
@@ -71,7 +72,6 @@ export const CreateTask = () => {
 
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
-  // 创建任务 - 调用真实检测API
   const handleCreateTask = async () => {
     if (numbers === 0) {
       alert('请先输入号码')
@@ -87,20 +87,52 @@ export const CreateTask = () => {
     setTaskCreated(false)
 
     try {
-      // 获取号码列表
       const phoneList = inputText.split('\n').filter(line => line.trim())
-
-      // 获取选中的检测项ID列表
       const itemsList = Array.from(selectedItems)
 
-      // 调用检测API
+      // 获取当前用户
+      const { data: userData } = await supabase.auth.getUser()
+      const userId = userData.user?.id
+
+      // 1. 创建任务记录
+      const { data: taskData, error: taskError } = await supabase
+        .from('tasks')
+        .insert({
+          user_id: userId,
+          platform: 'multi',
+          items: itemsList,
+          total_price: calculateTotal() * phoneList.length,
+          status: 'processing',
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single()
+
+      if (taskError) {
+        alert('创建任务失败: ' + taskError.message)
+        setLoading(false)
+        return
+      }
+
+      const taskId = taskData.id
+
+      // 2. 调用检测API
       const result = await createDetectionTask(phoneList, itemsList)
 
       if (result.success) {
         setResults(result.results)
+        // 3. 更新任务状态为已完成
+        await supabase
+          .from('tasks')
+          .update({ status: 'completed', completed_at: new Date().toISOString() })
+          .eq('id', taskId)
         setTaskCreated(true)
         alert(`✅ 检测完成！共检测 ${result.results.length} 个号码`)
       } else {
+        await supabase
+          .from('tasks')
+          .update({ status: 'failed', error: result.error })
+          .eq('id', taskId)
         alert('❌ 检测失败: ' + (result.error || '未知错误'))
       }
     } catch (error: any) {
@@ -114,7 +146,6 @@ export const CreateTask = () => {
     <div className="p-6 max-w-4xl mx-auto text-yellow-400">
       <h1 className="text-2xl font-bold text-white mb-6">📋 创建检测任务</h1>
 
-      {/* 检测方式切换 */}
       <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700/50">
         <p className="text-gray-300 text-sm mb-3">检测方式：</p>
         <div className="flex gap-4">
@@ -141,7 +172,6 @@ export const CreateTask = () => {
         </div>
       </div>
 
-      {/* 输入区域 */}
       <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700/50">
         <p className="text-gray-300 text-sm mb-2">
           请输入{inputType === 'phone' ? '手机号' : '用户名'}，每行一个：
@@ -155,7 +185,6 @@ export const CreateTask = () => {
         <p className="text-xs text-gray-500 mt-1">共 {numbers} 个号码</p>
       </div>
 
-      {/* 检测项目 */}
       <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700/50">
         <div className="flex items-center justify-between mb-4">
           <p className="text-white font-medium">📋 检测项目</p>
@@ -218,9 +247,7 @@ export const CreateTask = () => {
                                 />
                                 <span className="font-medium text-white">{main.label}</span>
                               </label>
-                              <span className="text-xs text-gray-500">
-                                ${main.price}/号码
-                              </span>
+                              <span className="text-xs text-gray-500">${main.price}/号码</span>
                             </div>
                             <div className="ml-6 mt-1 space-y-1">
                               {children.map(child => (
@@ -261,7 +288,6 @@ export const CreateTask = () => {
         })}
       </div>
 
-      {/* 任务汇总 */}
       <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-700/50">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex gap-6">
@@ -288,7 +314,6 @@ export const CreateTask = () => {
         </div>
       </div>
 
-      {/* 检测结果 */}
       {taskCreated && results.length > 0 && (
         <div className="bg-gray-800/50 rounded-lg p-4 mt-6 border border-green-500/50">
           <h3 className="text-white font-medium mb-3">✅ 检测结果</h3>
