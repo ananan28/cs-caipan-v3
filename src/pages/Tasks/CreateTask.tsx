@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
+import { DetectionService } from "../../services/detection/DetectionService"
 import { DetectionService } from '../../services/detection/DetectionService'
 import { supabase } from '../../lib/supabase'
 
@@ -118,7 +119,7 @@ export const CreateTask = () => {
       const taskId = taskData.id
 
       // 2. 调用检测API
-      const detectionService = new DetectionService(); const result = await detectionService.detectBatch(phoneList, itemsList)
+      const detectionService = new DetectionService(); const detectResults = await detectionService.detectBatch(phoneList, itemsList); const result = { success: true, results: detectResults }
 
       if (result.success) {
         setResults(result.results)
