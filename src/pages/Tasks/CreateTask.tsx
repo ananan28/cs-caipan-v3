@@ -73,6 +73,9 @@ export const CreateTask = () => {
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
   const handleCreateTask = async () => {
+    alert("handleCreateTask 被调用");
+    alert("handleCreateTask 被调用")
+    alert("handleCreateTask 被调用")
     if (numbers === 0) {
       alert('请先输入号码')
       return
