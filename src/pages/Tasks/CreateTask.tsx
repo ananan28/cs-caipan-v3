@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
-import { createDetectionTask } from '../../api/tasks'
+import { DetectionService } from '../../services/detection/DetectionService'
 import { supabase } from '../../lib/supabase'
 
 export const CreateTask = () => {
@@ -99,6 +99,7 @@ export const CreateTask = () => {
         .from('tasks')
         .insert({
           user_id: userId,
+            phone_numbers: phoneList,
           platform: 'multi',
           items: itemsList,
           total_price: calculateTotal() * phoneList.length,
@@ -117,7 +118,7 @@ export const CreateTask = () => {
       const taskId = taskData.id
 
       // 2. 调用检测API
-      const result = await createDetectionTask(phoneList, itemsList)
+      const detectionService = new DetectionService(); const result = await detectionService.detectBatch(phoneList, itemsList)
 
       if (result.success) {
         setResults(result.results)
