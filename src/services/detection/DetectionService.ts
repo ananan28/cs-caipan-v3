@@ -384,40 +384,6 @@ export class DetectionService {
   }
 }
 
-  // ========== 检测方法实现 ==========
-
-  private async detectOperator(phone: string, result: DetectionResult): Promise<void> {
-    try {
-      const apiKey = await this.getConfig('omkarcloud_api_key')
-      if (!apiKey) {
-        console.warn('omkarcloud API Key 未配置')
-        return
-      }
-
-      const response = await fetch(
-        `https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}`,
-        { signal: AbortSignal.timeout(8000) }
-      )
-
-      if (!response.ok) {
-        console.warn('omkarcloud API 返回错误:', response.status)
-        return
-      }
-
-      const data = await response.json()
-      console.log('omkarcloud 返回:', data)
-
-      if (data.carrier) {
-        result.operator = data.carrier
-        result.is_virtual = this.isVirtualNumber(data.carrier, data.line_type)
-        result.is_landline = data.line_type === 'landline'
-        result.source = 'omkarcloud'
-      }
-    } catch (error) {
-      console.error('运营商检测失败:', error)
-    }
-  }
-
   private async detectWhatsApp(phone: string, result: DetectionResult): Promise<void> {
     try {
       const apiKey = await this.getConfig('checknumber_api_key')
