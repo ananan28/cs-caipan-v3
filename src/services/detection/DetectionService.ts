@@ -100,7 +100,7 @@ export class DetectionService {
       if (!apiKey) return
 
       const response = await fetch(
-        `https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}`,
+        `http://apilayer.net/api/validate?access_key=${apiKey}https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}number=${phone}https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}country_code=UShttps://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}format=1`,
         { signal: AbortSignal.timeout(8000) }
       )
 
