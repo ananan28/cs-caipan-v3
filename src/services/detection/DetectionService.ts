@@ -94,27 +94,6 @@ export class DetectionService {
     return result
   }
 
-  private async detectOperator(phone: string, result: DetectionResult): Promise<void> {
-    try {
-      const apiKey = await this.getConfig('omkarcloud_api_key')
-      if (!apiKey) return
-
-      const response = await fetch(
-        `http://apilayer.net/api/validate?access_key=${apiKey}https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}number=${phone}https://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}country_code=UShttps://api.carrier-lookup.omkar.cloud/lookup?phone=${phone}&api_key=${apiKey}format=1`,
-        { signal: AbortSignal.timeout(8000) }
-      )
-
-      if (response.ok) {
-        const data = await response.json()
-        result.operator = data.carrier || null
-        result.is_virtual = this.isVirtualNumber(data.carrier, data.line_type)
-        result.is_landline = data.line_type === 'landline'
-        result.source = 'omkarcloud'
-      }
-    } catch (error) {
-      console.error('运营商检测失败:', error)
-    }
-  }
 
   private async detectWhatsApp(phone: string, result: DetectionResult): Promise<void> {
     try {
@@ -211,3 +190,25 @@ export class DetectionService {
     return data?.value || null
   }
 }
+
+  private async detectOperator(phone: string, result: DetectionResult): Promise<void> {
+    try {
+      const apiKey = await this.getConfig('numverify_api_key')
+      if (!apiKey) return
+
+      const response = await fetch(
+        `https://apilayer.net/api/validate?access_key=${apiKey}&number=${phone}&country_code=US&format=1`,
+        { signal: AbortSignal.timeout(8000) }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        result.operator = data.carrier || null
+        result.is_virtual = this.isVirtualNumber(data.carrier, data.line_type)
+        result.is_landline = data.line_type === 'landline'
+        result.source = 'numverify'
+      }
+    } catch (error) {
+      console.error('运营商检测失败:', error)
+    }
+  }
