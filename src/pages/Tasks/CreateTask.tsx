@@ -1,9 +1,8 @@
 import { useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
-import { DetectionService } from "../../services/detection/DetectionService"
 import { DetectionService } from '../../services/detection/DetectionService'
-import { supabase } from '../../lib/supabase'
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
@@ -100,7 +99,7 @@ export const CreateTask = () => {
         .from('tasks')
         .insert({
           user_id: userId,
-            phone_numbers: phoneList,
+          phone_numbers: phoneList,
           platform: 'multi',
           items: itemsList,
           total_price: calculateTotal() * phoneList.length,
@@ -119,24 +118,23 @@ export const CreateTask = () => {
       const taskId = taskData.id
 
       // 2. 调用检测API
-      const detectionService = new DetectionService(); const detectResults = await detectionService.detectBatch(phoneList, itemsList); const result = { success: true, results: detectResults }
+      const detectionService = new DetectionService()
+      const detectResults = await detectionService.detectBatch(phoneList, itemsList)
 
-      if (result.success) {
-        setResults(result.results)
-        // 3. 更新任务状态为已完成
-        await supabase
-          .from('tasks')
-          .update({ status: 'completed', completed_at: new Date().toISOString() })
-          .eq('id', taskId)
-        setTaskCreated(true)
-        alert(`✅ 检测完成！共检测 ${result.results.length} 个号码`)
-      } else {
-        await supabase
-          .from('tasks')
-          .update({ status: 'failed', error: result.error })
-          .eq('id', taskId)
-        alert('❌ 检测失败: ' + (result.error || '未知错误'))
-      }
+      // 3. 更新任务状态为已完成
+      await supabase
+        .from('tasks')
+        .update({ 
+          status: 'completed', 
+          completed_at: new Date().toISOString(),
+          results: detectResults 
+        })
+        .eq('id', taskId)
+
+      setResults(detectResults)
+      setTaskCreated(true)
+      alert(`✅ 检测完成！共检测 ${detectResults.length} 个号码`)
+
     } catch (error: any) {
       alert('❌ 检测失败: ' + error.message)
     } finally {
@@ -326,12 +324,6 @@ export const CreateTask = () => {
                   <th className="px-3 py-2 text-left text-gray-300">号码</th>
                   <th className="px-3 py-2 text-left text-gray-300">运营商</th>
                   <th className="px-3 py-2 text-left text-gray-300">虚拟号</th>
-                  {selectedItems.has('whatsapp_registered') && (
-                    <th className="px-3 py-2 text-left text-gray-300">WhatsApp</th>
-                  )}
-                  {selectedItems.has('telegram_registered') && (
-                    <th className="px-3 py-2 text-left text-gray-300">Telegram</th>
-                  )}
                 </tr>
               </thead>
               <tbody>
@@ -340,16 +332,6 @@ export const CreateTask = () => {
                     <td className="px-3 py-2 text-white text-xs font-mono">{r.phone}</td>
                     <td className="px-3 py-2 text-gray-300 text-xs">{r.operator || '-'}</td>
                     <td className="px-3 py-2 text-gray-300 text-xs">{r.is_virtual ? '是' : '否'}</td>
-                    {selectedItems.has('whatsapp_registered') && (
-                      <td className="px-3 py-2 text-gray-300 text-xs">
-                        {r.whatsapp?.registered ? '✅已注册' : '❌未注册'}
-                      </td>
-                    )}
-                    {selectedItems.has('telegram_registered') && (
-                      <td className="px-3 py-2 text-gray-300 text-xs">
-                        {r.telegram?.registered ? '✅已注册' : '❌未注册'}
-                      </td>
-                    )}
                   </tr>
                 ))}
               </tbody>
