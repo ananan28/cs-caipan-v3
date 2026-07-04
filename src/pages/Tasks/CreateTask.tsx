@@ -2,7 +2,24 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
-import { CheckNumberService } from '../../services/CheckNumberService'
+
+// 直接调用 Numverify API
+const detectPhone = async (phone: string) => {
+  const apiKey = 'bab02f58c001a0fa5108b92d17c6fc2b'
+  const url = `https://apilayer.net/api/validate?access_key=${apiKey}&number=${phone}&country_code=US&format=1`
+  
+  const response = await fetch(url)
+  const data = await response.json()
+  
+  return {
+    phone,
+    valid: data.valid || false,
+    carrier: data.carrier || '未知',
+    location: data.location || '未知',
+    line_type: data.line_type || '未知',
+    country: data.country_name || '未知'
+  }
+}
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
@@ -89,20 +106,9 @@ export const CreateTask = () => {
     try {
       const phoneList = inputText.split('\n').filter(line => line.trim())
       const itemsList = Array.from(selectedItems)
-      const checknumberService = new CheckNumberService()
 
-      // 获取当前用户
       const { data: userData } = await supabase.auth.getUser()
       const userId = userData.user?.id
-
-      // 收集需要检测的 taskType
-      const taskTypes: string[] = []
-      itemsList.forEach(id => {
-        const item = detectionItems.find(i => i.id === id)
-        if (item?.apiMapping?.service === 'checknumber' && item.apiMapping.taskType) {
-          taskTypes.push(item.apiMapping.taskType)
-        }
-      })
 
       // 1. 创建任务记录
       const { data: taskData, error: taskError } = await supabase
@@ -126,18 +132,12 @@ export const CreateTask = () => {
       }
 
       const taskId = taskData.id
+      const detectResults = []
 
-      // 2. 调用 CheckNumber API 检测
-      let allResults: any[] = []
-
-      for (const taskType of taskTypes) {
-        try {
-          console.log(`🔍 开始检测: ${taskType}`)
-          const result = await checknumberService.detectBatch(phoneList, taskType)
-          allResults = allResults.concat(result)
-        } catch (error: any) {
-          console.error(`❌ 检测失败 ${taskType}:`, error.message)
-        }
+      // 2. 逐个检测号码
+      for (const phone of phoneList) {
+        const result = await detectPhone(phone)
+        detectResults.push(result)
       }
 
       // 3. 更新任务状态
@@ -146,13 +146,13 @@ export const CreateTask = () => {
         .update({
           status: 'completed',
           completed_at: new Date().toISOString(),
-          results: allResults
+          results: detectResults
         })
         .eq('id', taskId)
 
-      setResults(allResults)
+      setResults(detectResults)
       setTaskCreated(true)
-      alert(`✅ 检测完成！共检测 ${allResults.length} 个号码`)
+      alert(`✅ 检测完成！共检测 ${detectResults.length} 个号码`)
 
     } catch (error: any) {
       alert('❌ 检测失败: ' + error.message)
@@ -192,13 +192,11 @@ export const CreateTask = () => {
       </div>
 
       <div className="bg-gray-800/50 rounded-lg p-4 mb-6 border border-gray-700/50">
-        <p className="text-gray-300 text-sm mb-2">
-          请输入{inputType === 'phone' ? '手机号' : '用户名'}，每行一个：
-        </p>
+        <p className="text-gray-300 text-sm mb-2">请输入号码，每行一个：</p>
         <textarea
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
-          placeholder={inputType === 'phone' ? '+14072220001\n+14072220002' : 'john_doe\njane_smith'}
+          placeholder="+14072220001&#10;+14072220002"
           className="w-full h-32 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-yellow-400"
         />
         <p className="text-xs text-gray-500 mt-1">共 {numbers} 个号码</p>
@@ -341,18 +339,16 @@ export const CreateTask = () => {
               <thead className="bg-gray-700/50">
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-300">号码</th>
-                  <th className="px-3 py-2 text-left text-gray-300">是否注册</th>
-                  <th className="px-3 py-2 text-left text-gray-300">头像</th>
-                  <th className="px-3 py-2 text-left text-gray-300">性别</th>
+                  <th className="px-3 py-2 text-left text-gray-300">运营商</th>
+                  <th className="px-3 py-2 text-left text-gray-300">地点</th>
                 </tr>
               </thead>
               <tbody>
                 {results.slice(0, 10).map((r, idx) => (
                   <tr key={idx} className="border-t border-gray-700/30">
                     <td className="px-3 py-2 text-white text-xs font-mono">{r.phone}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.registered ? '✅ 是' : '❌ 否'}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.has_avatar ? '有' : '无'}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.avatar_analysis?.gender || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.carrier || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.location || '-'}</td>
                   </tr>
                 ))}
               </tbody>
