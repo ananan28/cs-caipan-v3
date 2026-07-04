@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { detectionItems, getItemsByInputType, getGroups, groupLabels, getChildren } from '../../config/detectionItems'
 import { DetectionItem } from '../../config/detectionItems'
-import { DetectionService } from '../../services/detection/DetectionService'
+import { CheckNumberService } from '../../services/CheckNumberService'
 
 export const CreateTask = () => {
   const [inputType, setInputType] = useState<'phone' | 'username'>('phone')
@@ -73,9 +73,6 @@ export const CreateTask = () => {
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
   const handleCreateTask = async () => {
-    alert("handleCreateTask 被调用");
-    alert("handleCreateTask 被调用")
-    alert("handleCreateTask 被调用")
     if (numbers === 0) {
       alert('请先输入号码')
       return
@@ -92,10 +89,20 @@ export const CreateTask = () => {
     try {
       const phoneList = inputText.split('\n').filter(line => line.trim())
       const itemsList = Array.from(selectedItems)
+      const checknumberService = new CheckNumberService()
 
       // 获取当前用户
       const { data: userData } = await supabase.auth.getUser()
       const userId = userData.user?.id
+
+      // 收集需要检测的 taskType
+      const taskTypes: string[] = []
+      itemsList.forEach(id => {
+        const item = detectionItems.find(i => i.id === id)
+        if (item?.apiMapping?.service === 'checknumber' && item.apiMapping.taskType) {
+          taskTypes.push(item.apiMapping.taskType)
+        }
+      })
 
       // 1. 创建任务记录
       const { data: taskData, error: taskError } = await supabase
@@ -120,23 +127,32 @@ export const CreateTask = () => {
 
       const taskId = taskData.id
 
-      // 2. 调用检测API
-      const detectionService = new DetectionService()
-      const detectResults = await detectionService.detectBatch(phoneList, itemsList)
+      // 2. 调用 CheckNumber API 检测
+      let allResults: any[] = []
 
-      // 3. 更新任务状态为已完成
+      for (const taskType of taskTypes) {
+        try {
+          console.log(`🔍 开始检测: ${taskType}`)
+          const result = await checknumberService.detectBatch(phoneList, taskType)
+          allResults = allResults.concat(result)
+        } catch (error: any) {
+          console.error(`❌ 检测失败 ${taskType}:`, error.message)
+        }
+      }
+
+      // 3. 更新任务状态
       await supabase
         .from('tasks')
-        .update({ 
-          status: 'completed', 
+        .update({
+          status: 'completed',
           completed_at: new Date().toISOString(),
-          results: detectResults 
+          results: allResults
         })
         .eq('id', taskId)
 
-      setResults(detectResults)
+      setResults(allResults)
       setTaskCreated(true)
-      alert(`✅ 检测完成！共检测 ${detectResults.length} 个号码`)
+      alert(`✅ 检测完成！共检测 ${allResults.length} 个号码`)
 
     } catch (error: any) {
       alert('❌ 检测失败: ' + error.message)
@@ -325,16 +341,18 @@ export const CreateTask = () => {
               <thead className="bg-gray-700/50">
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-300">号码</th>
-                  <th className="px-3 py-2 text-left text-gray-300">运营商</th>
-                  <th className="px-3 py-2 text-left text-gray-300">虚拟号</th>
+                  <th className="px-3 py-2 text-left text-gray-300">是否注册</th>
+                  <th className="px-3 py-2 text-left text-gray-300">头像</th>
+                  <th className="px-3 py-2 text-left text-gray-300">性别</th>
                 </tr>
               </thead>
               <tbody>
                 {results.slice(0, 10).map((r, idx) => (
                   <tr key={idx} className="border-t border-gray-700/30">
                     <td className="px-3 py-2 text-white text-xs font-mono">{r.phone}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.operator || '-'}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.is_virtual ? '是' : '否'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.registered ? '✅ 是' : '❌ 否'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.has_avatar ? '有' : '无'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.avatar_analysis?.gender || '-'}</td>
                   </tr>
                 ))}
               </tbody>
