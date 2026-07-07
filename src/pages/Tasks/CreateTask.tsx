@@ -5,7 +5,6 @@ import { DetectionItem } from '../../config/detectionItems'
 
 // 直接调用 Numverify API
 const detectPhone = async (phone: string) => {
-const categoryMap = { "individual portrait":"个人肖像","group photo":"合照","landscape":"风景","cartoon avatar":"动漫头像","pet avatar":"宠物头像","object":"物品" }
   const apiKey = 'bab02f58c001a0fa5108b92d17c6fc2b'
   const url = `https://apilayer.net/api/validate?access_key=${apiKey}&number=${phone}&country_code=US&format=1`
   
@@ -19,6 +18,32 @@ const categoryMap = { "individual portrait":"个人肖像","group photo":"合照
     location: data.location || '未知',
     line_type: data.line_type || '未知',
     country: data.country_name || '未知'
+  }
+}
+
+// 中文映射
+const categoryMap: Record<string, string> = {
+  'individual portrait': '个人肖像',
+  'group photo': '合照',
+  'landscape': '风景',
+  'cartoon avatar': '动漫头像',
+  'pet avatar': '宠物头像',
+  'object': '物品',
+  'headless': '无头像'
+}
+
+const genderMap: Record<string, string> = {
+  male: '男',
+  female: '女',
+  unknown: '未知'
+}
+
+const mapResult = (row: any) => {
+  return {
+    ...row,
+    category: categoryMap[row.category] || row.category || '-',
+    gender: genderMap[row.gender] || row.gender || '-',
+    activated: row.activated === 'yes' ? '已注册' : row.activated === 'no' ? '未注册' : row.activated || '-'
   }
 }
 
@@ -133,12 +158,66 @@ export const CreateTask = () => {
       }
 
       const taskId = taskData.id
-      const detectResults = []
+      let detectResults = []
 
-      // 2. 逐个检测号码
-      for (const phone of phoneList) {
-        const result = await detectPhone(phone)
-        detectResults.push(result)
+      // 2. 检查是否需要头像检测
+      const needAvatar = itemsList.some(id => 
+        id === 'whatsapp_avatar' || id === 'whatsapp_avatar_analysis'
+      )
+
+      if (needAvatar) {
+        // 使用 CheckNumber 进行头像检测
+        const checknumberKey = 'x1HKsVAfzYU7esiTNpVaiEjifBHhQNOMynMG2R9qCDbrF5c9mqPLnskXQDbe'
+        const fileContent = phoneList.join('\n')
+        const file = new Blob([fileContent], { type: 'text/plain' })
+        const formData = new FormData()
+        formData.append('file', file, 'numbers.txt')
+        formData.append('task_type', 'ws_avatar')
+
+        const submitRes = await fetch('https://api.checknumber.ai/v1/tasks', {
+          method: 'POST',
+          headers: { 'X-API-Key': checknumberKey },
+          body: formData
+        })
+        const submitData = await submitRes.json()
+        const cnTaskId = submitData.task_id
+
+        // 轮询结果
+        let status = 'pending'
+        let resultUrl = null
+        while (status !== 'exported' && status !== 'failed') {
+          await new Promise(r => setTimeout(r, 3000))
+          const statusRes = await fetch('https://api.checknumber.ai/v1/gettasks', {
+            method: 'POST',
+            headers: {
+              'X-API-Key': checknumberKey,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `task_id=${cnTaskId}`
+          })
+          const statusData = await statusRes.json()
+          status = statusData.status
+          resultUrl = statusData.result_url
+        }
+
+        if (resultUrl) {
+          const resultRes = await fetch(resultUrl)
+          const resultText = await resultRes.text()
+          const lines = resultText.split('\n').filter(line => line.trim())
+          const headers = lines[0].split(',').map(h => h.trim())
+          detectResults = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim())
+            const obj: any = {}
+            headers.forEach((h, i) => { obj[h] = values[i] || '' })
+            return mapResult(obj)
+          })
+        }
+      } else {
+        // 使用 Numverify 做运营商检测
+        for (const phone of phoneList) {
+          const result = await detectPhone(phone)
+          detectResults.push(result)
+        }
       }
 
       // 3. 更新任务状态
@@ -341,49 +420,29 @@ export const CreateTask = () => {
                 <tr>
                   <th className="px-3 py-2 text-left text-gray-300">号码</th>
                   <th className="px-3 py-2 text-left text-gray-300">运营商</th>
-                  <th className="px-3 py-2 text-left text-gray-300">地点</th>
+                  <th className="px-3 py-2 text-left text-gray-300">头像</th>
+                  <th className="px-3 py-2 text-left text-gray-300">性别</th>
+                  <th className="px-3 py-2 text-left text-gray-300">年龄</th>
                 </tr>
               </thead>
               <tbody>
-                {results.slice(0, 10).map((r, idx) => (
+                {results.slice(0, 20).map((r, idx) => (
                   <tr key={idx} className="border-t border-gray-700/30">
                     <td className="px-3 py-2 text-white text-xs font-mono">{r.phone}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.carrier || '-'}</td>
-                    <td className="px-3 py-2 text-gray-300 text-xs">{r.location || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.carrier || r.activated || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.category || (r.has_avatar ? '有' : '无') || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.gender || '-'}</td>
+                    <td className="px-3 py-2 text-gray-300 text-xs">{r.age || '-'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {results.length > 10 && (
-              <p className="text-xs text-gray-500 mt-2">显示前10条，共 {results.length} 条</p>
+            {results.length > 20 && (
+              <p className="text-xs text-gray-500 mt-2">显示前20条，共 {results.length} 条</p>
             )}
           </div>
         </div>
       )}
     </div>
   )
-}
-
-// 结果映射函数
-const mapResult = (row: any) => {
-  const categoryMap: Record<string, string> = {
-    'individual portrait': '个人肖像',
-    'group photo': '合照',
-    'landscape': '风景',
-    'cartoon avatar': '动漫头像',
-    'pet avatar': '宠物头像',
-    'object': '物品'
-  }
-  const genderMap: Record<string, string> = {
-    male: '男',
-    female: '女',
-    unknown: '未知'
-  }
-  
-  return {
-    ...row,
-    category: categoryMap[row.category] || row.category || '-',
-    gender: genderMap[row.gender] || row.gender || '-',
-    activated: row.activated === 'yes' ? '已注册' : row.activated === 'no' ? '未注册' : row.activated
-  }
 }
