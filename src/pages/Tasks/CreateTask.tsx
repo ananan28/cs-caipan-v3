@@ -163,7 +163,6 @@ export const CreateTask = () => {
 
       // 2. 检查是否需要头像检测
       const needAvatar = itemsList.some(id => 
-    console.log("needAvatar:", needAvatar, "itemsList:", itemsList)
         id === 'whatsapp_avatar' || id === 'whatsapp_avatar_analysis'
       )
 
