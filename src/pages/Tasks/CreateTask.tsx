@@ -5,6 +5,7 @@ import { DetectionItem } from '../../config/detectionItems'
 
 // 直接调用 Numverify API
 const detectPhone = async (phone: string) => {
+const categoryMap = { "individual portrait":"个人肖像","group photo":"合照","landscape":"风景","cartoon avatar":"动漫头像","pet avatar":"宠物头像","object":"物品" }
   const apiKey = 'bab02f58c001a0fa5108b92d17c6fc2b'
   const url = `https://apilayer.net/api/validate?access_key=${apiKey}&number=${phone}&country_code=US&format=1`
   
@@ -361,4 +362,28 @@ export const CreateTask = () => {
       )}
     </div>
   )
+}
+
+// 结果映射函数
+const mapResult = (row: any) => {
+  const categoryMap: Record<string, string> = {
+    'individual portrait': '个人肖像',
+    'group photo': '合照',
+    'landscape': '风景',
+    'cartoon avatar': '动漫头像',
+    'pet avatar': '宠物头像',
+    'object': '物品'
+  }
+  const genderMap: Record<string, string> = {
+    male: '男',
+    female: '女',
+    unknown: '未知'
+  }
+  
+  return {
+    ...row,
+    category: categoryMap[row.category] || row.category || '-',
+    gender: genderMap[row.gender] || row.gender || '-',
+    activated: row.activated === 'yes' ? '已注册' : row.activated === 'no' ? '未注册' : row.activated
+  }
 }
