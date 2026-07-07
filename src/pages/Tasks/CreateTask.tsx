@@ -116,6 +116,7 @@ export const CreateTask = () => {
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
   const handleCreateTask = async () => {
+    console.log("handleCreateTask 被调用, selectedItems:", Array.from(selectedItems))
     if (numbers === 0) {
       alert('请先输入号码')
       return
@@ -162,6 +163,7 @@ export const CreateTask = () => {
 
       // 2. 检查是否需要头像检测
       const needAvatar = itemsList.some(id => 
+    console.log("needAvatar:", needAvatar, "itemsList:", itemsList)
         id === 'whatsapp_avatar' || id === 'whatsapp_avatar_analysis'
       )
 
