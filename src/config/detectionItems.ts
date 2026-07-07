@@ -46,7 +46,7 @@ export const detectionItems: DetectionItem[] = [
     group: 'carrier'
   },
 
-  // ===== WhatsApp =====
+  // ===== WhatsApp 检测 =====
   {
     id: 'whatsapp_registered',
     key: 'whatsapp_registered',
@@ -64,7 +64,7 @@ export const detectionItems: DetectionItem[] = [
     label: '头像检测',
     category: 'whatsapp',
     inputType: 'phone',
-    price: 0.015,
+    price: 0.025,
     group: 'whatsapp',
     parent: 'whatsapp',
     apiMapping: { service: 'checknumber', taskType: 'ws_avatar' }
@@ -75,13 +75,13 @@ export const detectionItems: DetectionItem[] = [
     label: '头像分析（性别/年龄/人种）',
     category: 'whatsapp',
     inputType: 'phone',
-    price: 0.025,
+    price: 0.03,
     group: 'whatsapp',
     parent: 'whatsapp',
     apiMapping: { service: 'checknumber', taskType: 'ws_senior' }
   },
 
-  // ===== Telegram =====
+  // ===== 其他社交平台 =====
   {
     id: 'telegram_registered',
     key: 'telegram_registered',
@@ -94,30 +94,6 @@ export const detectionItems: DetectionItem[] = [
     apiMapping: { service: 'checknumber', taskType: 'tg' }
   },
   {
-    id: 'telegram_avatar',
-    key: 'telegram_avatar',
-    label: '头像检测',
-    category: 'telegram',
-    inputType: 'username',
-    price: 0.015,
-    group: 'telegram',
-    parent: 'telegram',
-    apiMapping: { service: 'checknumber', taskType: 'tg_avatar' }
-  },
-  {
-    id: 'telegram_avatar_analysis',
-    key: 'telegram_avatar_analysis',
-    label: '头像分析（性别/年龄/人种）',
-    category: 'telegram',
-    inputType: 'username',
-    price: 0.025,
-    group: 'telegram',
-    parent: 'telegram',
-    apiMapping: { service: 'checknumber', taskType: 'tg_senior' }
-  },
-
-  // ===== Signal =====
-  {
     id: 'signal_registered',
     key: 'signal_registered',
     label: '注册检测',
@@ -127,8 +103,6 @@ export const detectionItems: DetectionItem[] = [
     group: 'signal',
     apiMapping: { service: 'checknumber', taskType: 'signal' }
   },
-
-  // ===== Line =====
   {
     id: 'line_registered',
     key: 'line_registered',
@@ -139,8 +113,6 @@ export const detectionItems: DetectionItem[] = [
     group: 'line',
     apiMapping: { service: 'checknumber', taskType: 'line' }
   },
-
-  // ===== iMessage =====
   {
     id: 'imessage_registered',
     key: 'imessage_registered',
@@ -151,8 +123,6 @@ export const detectionItems: DetectionItem[] = [
     group: 'imessage',
     apiMapping: { service: 'checknumber', taskType: 'imessage' }
   },
-
-  // ===== Facebook =====
   {
     id: 'facebook_registered',
     key: 'facebook_registered',
@@ -165,30 +135,6 @@ export const detectionItems: DetectionItem[] = [
     apiMapping: { service: 'checknumber', taskType: 'facebook' }
   },
   {
-    id: 'facebook_avatar',
-    key: 'facebook_avatar',
-    label: '头像检测',
-    category: 'facebook',
-    inputType: 'username',
-    price: 0.015,
-    group: 'facebook',
-    parent: 'facebook',
-    apiMapping: { service: 'checknumber', taskType: 'facebook_avatar' }
-  },
-  {
-    id: 'facebook_active',
-    key: 'facebook_active',
-    label: '活跃度检测',
-    category: 'facebook',
-    inputType: 'username',
-    price: 0.02,
-    group: 'facebook',
-    parent: 'facebook',
-    apiMapping: { service: 'checknumber', taskType: 'facebook_active' }
-  },
-
-  // ===== Instagram =====
-  {
     id: 'instagram_registered',
     key: 'instagram_registered',
     label: '注册检测',
@@ -199,30 +145,6 @@ export const detectionItems: DetectionItem[] = [
     parent: 'instagram',
     apiMapping: { service: 'checknumber', taskType: 'instagram' }
   },
-  {
-    id: 'instagram_avatar',
-    key: 'instagram_avatar',
-    label: '头像检测',
-    category: 'instagram',
-    inputType: 'username',
-    price: 0.015,
-    group: 'instagram',
-    parent: 'instagram',
-    apiMapping: { service: 'checknumber', taskType: 'instagram_avatar' }
-  },
-  {
-    id: 'instagram_type',
-    key: 'instagram_type',
-    label: '账号类型检测（公开/私密）',
-    category: 'instagram',
-    inputType: 'username',
-    price: 0.02,
-    group: 'instagram',
-    parent: 'instagram',
-    apiMapping: { service: 'checknumber', taskType: 'instagram_type' }
-  },
-
-  // ===== Twitter =====
   {
     id: 'twitter_registered',
     key: 'twitter_registered',
@@ -235,30 +157,6 @@ export const detectionItems: DetectionItem[] = [
     apiMapping: { service: 'checknumber', taskType: 'twitter' }
   },
   {
-    id: 'twitter_avatar',
-    key: 'twitter_avatar',
-    label: '头像检测',
-    category: 'twitter',
-    inputType: 'username',
-    price: 0.015,
-    group: 'twitter',
-    parent: 'twitter',
-    apiMapping: { service: 'checknumber', taskType: 'twitter_avatar' }
-  },
-  {
-    id: 'twitter_verified',
-    key: 'twitter_verified',
-    label: '蓝V认证检测',
-    category: 'twitter',
-    inputType: 'username',
-    price: 0.02,
-    group: 'twitter',
-    parent: 'twitter',
-    apiMapping: { service: 'checknumber', taskType: 'twitter_verified' }
-  },
-
-  // ===== Viber =====
-  {
     id: 'viber_registered',
     key: 'viber_registered',
     label: '注册检测',
@@ -270,30 +168,6 @@ export const detectionItems: DetectionItem[] = [
     apiMapping: { service: 'checknumber', taskType: 'viber' }
   },
   {
-    id: 'viber_avatar',
-    key: 'viber_avatar',
-    label: '头像检测',
-    category: 'viber',
-    inputType: 'phone',
-    price: 0.015,
-    group: 'viber',
-    parent: 'viber',
-    apiMapping: { service: 'checknumber', taskType: 'viber_avatar' }
-  },
-  {
-    id: 'viber_avatar_analysis',
-    key: 'viber_avatar_analysis',
-    label: '头像分析（性别/年龄/人种）',
-    category: 'viber',
-    inputType: 'phone',
-    price: 0.025,
-    group: 'viber',
-    parent: 'viber',
-    apiMapping: { service: 'checknumber', taskType: 'viber_senior' }
-  },
-
-  // ===== Zalo =====
-  {
     id: 'zalo_registered',
     key: 'zalo_registered',
     label: '注册检测',
@@ -304,30 +178,6 @@ export const detectionItems: DetectionItem[] = [
     parent: 'zalo',
     apiMapping: { service: 'checknumber', taskType: 'zalo' }
   },
-  {
-    id: 'zalo_avatar',
-    key: 'zalo_avatar',
-    label: '头像检测',
-    category: 'zalo',
-    inputType: 'phone',
-    price: 0.015,
-    group: 'zalo',
-    parent: 'zalo',
-    apiMapping: { service: 'checknumber', taskType: 'zalo_avatar' }
-  },
-  {
-    id: 'zalo_avatar_analysis',
-    key: 'zalo_avatar_analysis',
-    label: '头像分析（性别/年龄/人种）',
-    category: 'zalo',
-    inputType: 'phone',
-    price: 0.025,
-    group: 'zalo',
-    parent: 'zalo',
-    apiMapping: { service: 'checknumber', taskType: 'zalo_senior' }
-  },
-
-  // ===== RCS =====
   {
     id: 'rcs_registered',
     key: 'rcs_registered',
