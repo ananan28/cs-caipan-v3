@@ -16,25 +16,31 @@ export default async function handler(req, res) {
     const API_KEY = 'x1HKsVAfzYU7esiTNpVaiEjifBHhQNOMynMG2R9qCDbrF5c9mqPLnskXQDbe'
     const BASE_URL = 'https://api.checknumber.ai'
     
-    // 解析请求体（支持 FormData）
-    const contentType = req.headers['content-type'] || ''
-    let path, method, data
-    
-    if (contentType.includes('multipart/form-data')) {
-      // 使用 formidable 或直接透传
-      // 简化处理：只处理 JSON
-      return res.status(400).json({ error: 'Please use JSON format' })
-    }
-    
-    const body = req.body
-    path = body.path
-    method = body.method || 'POST'
-    data = body.data
+    const { path, method, data } = req.body
     
     const url = `${BASE_URL}${path}`
     
+    // 如果是提交任务，需要特殊处理
+    if (path === '/v1/tasks' && data?.file) {
+      // 使用 FormData 发送文件
+      const formData = new FormData()
+      const fileContent = data.file
+      const file = new Blob([fileContent], { type: 'text/plain' })
+      formData.append('file', file, 'numbers.txt')
+      formData.append('task_type', data.task_type || 'ws_avatar')
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'X-API-Key': API_KEY },
+        body: formData
+      })
+      const responseData = await response.text()
+      return res.status(response.status).send(responseData)
+    }
+    
+    // 其他请求（如查询状态）
     const fetchOptions = {
-      method: method,
+      method: method || 'POST',
       headers: {
         'X-API-Key': API_KEY,
         'Content-Type': 'application/json'
@@ -48,12 +54,7 @@ export default async function handler(req, res) {
     const response = await fetch(url, fetchOptions)
     const responseData = await response.text()
     
-    try {
-      const jsonData = JSON.parse(responseData)
-      res.status(response.status).json(jsonData)
-    } catch {
-      res.status(response.status).send(responseData)
-    }
+    res.status(response.status).send(responseData)
   } catch (error) {
     res.status(500).json({ error: '代理请求失败', details: String(error) })
   }

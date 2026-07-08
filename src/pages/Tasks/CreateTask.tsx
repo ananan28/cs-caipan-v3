@@ -81,43 +81,65 @@ export const CreateTask = () => {
 
   // 直接用 FormData 提交到 CheckNumber（通过代理）
   const runDetection = async (phoneList: string[]) => {
-    console.log('🚀 开始头像检测，号码数量:', phoneList.length)
+    console.log("🚀 开始头像检测，号码数量:", phoneList.length)
     
-    // 创建文件内容
-    const fileContent = phoneList.join('\n')
-    const file = new Blob([fileContent], { type: 'text/plain' })
-    const formData = new FormData()
-    formData.append('file', file, 'numbers.txt')
-    formData.append('task_type', 'ws_avatar')
-
-    // 直接用 fetch 提交到 CheckNumber（CORS 已通过代理解决）
-    const submitRes = await fetch('https://api.checknumber.ai/v1/tasks', {
-      method: 'POST',
-      headers: { 'X-API-Key': CHECKNUMBER_KEY },
-      body: formData
+    const fileContent = phoneList.join("\n")
+    
+    // 通过代理提交任务
+    const submitRes = await fetch("/api/checknumber", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: "/v1/tasks",
+        method: "POST",
+        data: {
+          task_type: "ws_avatar",
+          file: fileContent
+        }
+      })
     })
     const submitData = await submitRes.json()
-    console.log('📤 提交响应:', submitData)
+    console.log("📤 提交响应:", submitData)
     
     const taskId = submitData.task_id
-    if (!taskId) throw new Error('提交任务失败: ' + JSON.stringify(submitData))
+    if (!taskId) throw new Error("提交任务失败: " + JSON.stringify(submitData))
 
-    // 轮询结果（通过代理）
-    let status = 'pending'
+    let status = "pending"
     let resultUrl = null
     let attempts = 0
-    while (status !== 'exported' && status !== 'failed' && attempts < 60) {
+    while (status !== "exported" && status !== "failed" && attempts < 60) {
       await new Promise(r => setTimeout(r, 3000))
       attempts++
-      const statusRes = await fetch('/api/checknumber', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const statusRes = await fetch("/api/checknumber", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          path: '/v1/gettasks',
-          method: 'POST',
+          path: "/v1/gettasks",
+          method: "POST",
           data: { task_id: taskId }
         })
       })
+      const statusData = await statusRes.json()
+      status = statusData.status
+      resultUrl = statusData.result_url
+      console.log(`📊 状态: ${status} (${attempts * 3}s)`)
+
+      if (status === "exported" && resultUrl) {
+        const resultRes = await fetch(resultUrl)
+        const text = await resultRes.text()
+        const lines = text.split("\n").filter((l: string) => l.trim())
+        if (lines.length < 2) return []
+        const headers = lines[0].split(",").map((h: string) => h.trim())
+        return lines.slice(1).map((line: string) => {
+          const values = line.split(",").map((v: string) => v.trim())
+          const obj: any = {}
+          headers.forEach((h: string, i: number) => { obj[h] = values[i] || "" })
+          return mapResult(obj)
+        })
+      }
+    }
+    throw new Error("检测超时或失败")
+  }
       const statusData = await statusRes.json()
       status = statusData.status
       resultUrl = statusData.result_url
