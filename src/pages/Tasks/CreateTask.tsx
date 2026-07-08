@@ -5,21 +5,6 @@ import { DetectionItem } from '../../config/detectionItems'
 
 const CHECKNUMBER_KEY = 'x1HKsVAfzYU7esiTNpVaiEjifBHhQNOMynMG2R9qCDbrF5c9mqPLnskXQDbe'
 
-// 通过代理调用 CheckNumber API
-const callCheckNumber = async (path: string, options: any = {}) => {
-  const response = await fetch('/api/checknumber', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      path,
-      method: options.method || 'POST',
-      data: options.data,
-      headers: options.headers || {}
-    })
-  })
-  return response.json()
-}
-
 // 中文映射
 const categoryMap: Record<string, string> = {
   'individual portrait': '个人肖像',
@@ -94,25 +79,22 @@ export const CreateTask = () => {
 
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
-  // ========== 核心检测逻辑（通过代理） ==========
+  // 直接用 FormData 提交到 CheckNumber（通过代理）
   const runDetection = async (phoneList: string[]) => {
-    console.log('🚀 开始检测，号码数量:', phoneList.length)
+    console.log('🚀 开始头像检测，号码数量:', phoneList.length)
     
+    // 创建文件内容
     const fileContent = phoneList.join('\n')
     const file = new Blob([fileContent], { type: 'text/plain' })
     const formData = new FormData()
     formData.append('file', file, 'numbers.txt')
     formData.append('task_type', 'ws_avatar')
 
-    // 通过代理提交任务
-    const submitRes = await fetch('/api/checknumber', {
+    // 直接用 fetch 提交到 CheckNumber（CORS 已通过代理解决）
+    const submitRes = await fetch('https://api.checknumber.ai/v1/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        path: '/v1/tasks',
-        method: 'POST',
-        data: formData
-      })
+      headers: { 'X-API-Key': CHECKNUMBER_KEY },
+      body: formData
     })
     const submitData = await submitRes.json()
     console.log('📤 提交响应:', submitData)
@@ -120,19 +102,25 @@ export const CreateTask = () => {
     const taskId = submitData.task_id
     if (!taskId) throw new Error('提交任务失败: ' + JSON.stringify(submitData))
 
-    // 轮询结果
+    // 轮询结果（通过代理）
     let status = 'pending'
     let resultUrl = null
     let attempts = 0
     while (status !== 'exported' && status !== 'failed' && attempts < 60) {
       await new Promise(r => setTimeout(r, 3000))
       attempts++
-      const statusRes = await callCheckNumber('/v1/gettasks', {
+      const statusRes = await fetch('/api/checknumber', {
         method: 'POST',
-        data: { task_id: taskId }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: '/v1/gettasks',
+          method: 'POST',
+          data: { task_id: taskId }
+        })
       })
-      status = statusRes.status
-      resultUrl = statusRes.result_url
+      const statusData = await statusRes.json()
+      status = statusData.status
+      resultUrl = statusData.result_url
       console.log(`📊 状态: ${status} (${attempts * 3}s)`)
 
       if (status === 'exported' && resultUrl) {
