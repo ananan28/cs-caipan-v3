@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-  // 设置 CORS
+  // CORS 设置
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key')
@@ -20,9 +20,8 @@ export default async function handler(req, res) {
     
     const url = `${BASE_URL}${path}`
     
-    // 如果是提交任务，需要特殊处理
+    // 提交任务（带文件）
     if (path === '/v1/tasks' && data?.file) {
-      // 使用 FormData 发送文件
       const formData = new FormData()
       const fileContent = data.file
       const file = new Blob([fileContent], { type: 'text/plain' })
@@ -38,7 +37,7 @@ export default async function handler(req, res) {
       return res.status(response.status).send(responseData)
     }
     
-    // 其他请求（如查询状态）
+    // 查询状态
     const fetchOptions = {
       method: method || 'POST',
       headers: {
@@ -46,16 +45,12 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
       }
     }
-    
-    if (data) {
-      fetchOptions.body = JSON.stringify(data)
-    }
+    if (data) fetchOptions.body = JSON.stringify(data)
     
     const response = await fetch(url, fetchOptions)
     const responseData = await response.text()
-    
     res.status(response.status).send(responseData)
   } catch (error) {
-    res.status(500).json({ error: '代理请求失败', details: String(error) })
+    res.status(500).json({ error: '代理请求失败' })
   }
 }
