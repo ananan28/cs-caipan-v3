@@ -116,6 +116,7 @@ export const CreateTask = () => {
   const numbers = inputText.split('\n').filter(line => line.trim()).length
 
   const handleCreateTask = async () => {
+    console.log("🔥 handleCreateTask 被调用, selectedItems:", Array.from(selectedItems))
     console.log("handleCreateTask 被调用, selectedItems:", Array.from(selectedItems))
     if (numbers === 0) {
       alert('请先输入号码')
